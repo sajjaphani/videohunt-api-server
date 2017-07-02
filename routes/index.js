@@ -1,7 +1,6 @@
 const router = require('express').Router();
 
 router.get("/", function (req, res) {
-    console.log('Request')
     res.json({ message: 'Hello World' });
 });
 
@@ -19,8 +18,7 @@ router.get("/api/v1/videos", function (req, res) {
     var videoPosts = [{
         date: 'Today',
         annotation: 'April 30th',
-        posts: [
-            {
+        posts: [{
                 postId: 'dsdxdxax',
                 title: 'Fun Bucket | 87th Episode | Funny Videos | #TeluguComedyWebSeries ',
                 subtitle: 'Fun Bucket',
