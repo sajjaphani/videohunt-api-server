@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+
+var env = require('../util/env');
+var http = require('http');
+var app = require('../app');
+
+var port = env.NODE_SERVER_PORT;
+
+var server = http.createServer(app);
+server.listen(port, () => {
+  console.log("API Server started and listening on port:", port)
+});
+
+server.on('error', (error) => {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  switch (error.code) {
+    case 'EACCES':
+      console.error(port + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(port + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+});
+
+
