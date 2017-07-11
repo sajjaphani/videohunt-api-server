@@ -1,6 +1,8 @@
 var env = require('./util/env');
 
 var express = require('express');
+var app = express();
+
 var path = require('path');
 var favicon = require('serve-favicon');
 // var mlogger = require('morgan');
@@ -16,6 +18,7 @@ var MongoStore = require('connect-mongo')(session);
 var connectionUrl = env.MONGO_CONNECTION_URL;
 var db = require("./db")(connectionUrl);
 var models = require("./models")(db);
+app.set('models', models); 
 
 // var userData = {
 //     name: 'name',
@@ -33,7 +36,7 @@ var models = require("./models")(db);
 
 // });
 
-var app = express();
+
 
 // Configure router
 var routes = require("./routes");
