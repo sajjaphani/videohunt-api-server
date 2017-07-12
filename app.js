@@ -18,50 +18,23 @@ var MongoStore = require('connect-mongo')(session);
 var connectionUrl = env.MONGO_CONNECTION_URL;
 var db = require("./db")(connectionUrl);
 var models = require("./models")(db);
-app.set('models', models); 
-
-// var userData = {
-//     name: 'name',
-//     headline: 'headline',
-//     email: 'email'
-// };
-// var user = new models.User(userData);
-
-// user.save( function(error, data){
-//     if(error)
-//         console.log(error);
-
-//     if(data)
-//         console.log(data);
-
-// });
-
-
-
-// Configure router
-var routes = require("./routes");
-app.use('/', routes)
-
-// var sessionStore = new MongoStore({
-//   url: connectionUrl,
-//   ttl: env.USER_SESSION_TIMEOUT
-// });
-
-// //Set up new session
-// app.use(session({
-//   secret: 'mern',
-//   resave: false,
-//   saveUninitialized: true,
-//   store: sessionStore,
-//   rolling: true
-// }));
+app.set('models', models);
 
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 
 // app.use(mlogger('dev'));
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+  type: function () {
+    return true;
+  }
+}));
+
 app.use(bodyParser.urlencoded({ extended: false }));
 // app.use(cookieParser());
+
+// Configure router
+var routes = require("./routes");
+app.use('/', routes)
 
 // catch 404 and forward to error handler
 // As it is an API server, we need to send proper error message in Json
