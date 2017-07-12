@@ -7,6 +7,7 @@ router.get("/", function (req, res) {
     models.Post.find({}, function (err, posts) {
         if (err) {
             console.error(err)
+            res.send(err)
         } else {
             let feed = { 'feed': {}, 'posts': {} }
 
