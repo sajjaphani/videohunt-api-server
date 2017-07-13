@@ -150,6 +150,7 @@ router.post("/:postId/comments", function (req, res) {
                                                 res.send(err)
                                             } else {
                                                 newComment.commentId = comment._id
+                                                newComment.postId = post._id
                                                 res.status(201).json(newComment)
                                             }
                                         }
@@ -161,6 +162,45 @@ router.post("/:postId/comments", function (req, res) {
                         }
                     }
                 });
+            } else {
+                res.status(401).json({ message: 'Unauthorized' });
+            }
+        }
+    });
+});
+
+// POST Handle likes (like/unlike) for existing post (by its id)
+router.post("/:postId/like", function (req, res) {
+    let likeData = req.body
+    let models = req.app.get('models');
+    models.User.findOne({ email: likeData.user }, '_id', function (err, user) {
+        if (err) {
+            console.error(err);
+            res.send(err)
+        } else {
+            if (user) {
+                if (likeData.liked) {
+                    models.Post.findByIdAndUpdate(req.params.postId,
+                        { $addToSet: { likes: user._id } },
+                        { safe: true, new: true }, function (err, result) {
+                            if (err) {
+                                console.log(err);
+                            }
+                            console.log("RESULT: " + result);
+                            res.status(200).json({liked:likeData.liked, userId:user._id, postId:result._id})
+                        });
+                } else {
+                    console.log('here... ' + user._id)
+                    models.Post.findByIdAndUpdate(req.params.postId,
+                        { $pull: { likes: user._id } }, 
+                        { safe: true, new: true }, function (err, result) {
+                            if (err) {
+                                console.log(err);
+                            }
+                            console.log("RESULT: " + result);
+                            res.status(200).json({liked:likeData.liked, userId:user._id, postId:result._id})
+                        });
+                }
             } else {
                 res.status(401).json({ message: 'Unauthorized' });
             }
