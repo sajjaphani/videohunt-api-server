@@ -25,7 +25,24 @@ router.get("/", function (req, res) {
 
                 return feed;
             }, feed);
-            res.status(200).json(feed);
+
+            // We should filter the users based on selected posts
+            models.User.find({}, function (err, users) {
+                if (err || !users) {
+                    console.log(err)
+                    res.status(200).json(feed);
+                }
+                if (users) {
+                    let userss = users.reduce(function (userFd, user) {
+                        userFd[user._id] = user
+                        return userFd
+                    }, {});
+                    console.log(userss)
+                    feed['users'] = userss
+
+                    res.status(200).json(feed);
+                }
+            });
         }
     }).sort({ 'postedOn': -1 });
 });
@@ -187,18 +204,18 @@ router.post("/:postId/like", function (req, res) {
                                 console.log(err);
                             }
                             console.log("RESULT: " + result);
-                            res.status(200).json({liked:likeData.liked, userId:user._id, postId:result._id})
+                            res.status(200).json({ liked: likeData.liked, userId: user._id, postId: result._id })
                         });
                 } else {
                     console.log('here... ' + user._id)
                     models.Post.findByIdAndUpdate(req.params.postId,
-                        { $pull: { likes: user._id } }, 
+                        { $pull: { likes: user._id } },
                         { safe: true, new: true }, function (err, result) {
                             if (err) {
                                 console.log(err);
                             }
                             console.log("RESULT: " + result);
-                            res.status(200).json({liked:likeData.liked, userId:user._id, postId:result._id})
+                            res.status(200).json({ liked: likeData.liked, userId: user._id, postId: result._id })
                         });
                 }
             } else {
