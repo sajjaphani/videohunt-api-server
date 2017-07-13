@@ -1,5 +1,8 @@
 const router = require('express').Router();
 
+// TODO we need to change this as we are supposed to use OAuth 2.0?
+// TODO We need to omit __v before sending the resutls
+// TODO can we extract the db access logic separately?
 // GET all (most frequent) posts
 // Currently we are fetching all (we should introduce pagination)
 router.get("/", function (req, res) {
@@ -10,7 +13,6 @@ router.get("/", function (req, res) {
             res.send(err)
         } else {
             let feed = { 'feed': {}, 'posts': {} }
-
             var result = posts.reduce(function (feed, post) {
                 let map = feed['feed']
                 let posts = feed['posts']
@@ -77,17 +79,93 @@ router.post('/', function (req, res) {
 
 // GET the comments for the post (by its id)
 router.get("/:postId/comments", function (req, res) {
+    // This queries comments for a single level only, we need to query 2 levels as it is our plan to proceed
     console.log('Comments for: ' + req.params.postId)
-    res.header("Access-Control-Allow-Origin", "*");
-    res.status(200).json({ post: req.params.postId });
+    let models = req.app.get('models');
+    models.Post.findById(req.params.postId, function (err, post) {
+        if (err) {
+            console.log(err) // send the error to the user
+            res.send(err)
+        } else {
+            if (post) {
+                console.log(post)
+                let comments = post.comments
+                models.Comment.find({
+                    _id: {
+                        $in: comments
+                    }
+                }, function (err, comments) {
+                    if (err) {
+                        console.error(err)
+                        res.send(err)
+                    } else {
+                        console.log(comments)
+                        var result = comments.reduce(function (comments, comment) {
+                            comments[comment._id] = comment
+                            return comments;
+                        }, {});
+                        res.status(200).json(result);
+                    }
+                });
+            } else {
+                res.status(404).json({ messge: 'Not Found' });
+            }
+        }
+    });
 });
 
 // POST a new comment on an existing post (by its id)
 router.post("/:postId/comments", function (req, res) {
-    // res.status(201).json({ post: req.params.postId });
-    console.log('Posting a new comment for: ' + req.params.postId)
-    res.header("Access-Control-Allow-Origin", "*");
-    res.status(200).json({ post: req.params.postId });
+    let commentData = req.body
+    let models = req.app.get('models');
+    models.User.findOne({ email: commentData.user }, '_id', function (err, user) {
+        if (err) {
+            console.error(err);
+            res.send(err)
+        } else {
+            if (user) {
+                models.Post.findById(req.params.postId, function (err, post) {
+                    if (err) {
+                        console.log(err) // send the error to the user
+                        res.send(err)
+                    } else {
+                        if (post) {
+                            let newComment = {
+                                content: commentData.content,
+                                userId: user._id
+                            }
+                            new models.Comment(newComment).save(function (err, comment) {
+                                if (err) {
+                                    console.log(err) // send the error to the user
+                                    res.send(err)
+                                } else {
+                                    console.log(comment)
+                                    models.Post.findByIdAndUpdate(post._id,
+                                        { $push: { comments: comment._id } },
+                                        { safe: true, upsert: true, new: true },
+                                        function (err, model) {
+                                            if (err) {
+                                                // We should rollback comment here
+                                                console.log(err)
+                                                res.send(err)
+                                            } else {
+                                                newComment.commentId = comment._id
+                                                res.status(201).json(newComment)
+                                            }
+                                        }
+                                    );
+                                }
+                            });
+                        } else {
+                            res.status(404).json({ messge: 'Not Found' });
+                        }
+                    }
+                });
+            } else {
+                res.status(401).json({ message: 'Unauthorized' });
+            }
+        }
+    });
 });
 
 module.exports = router;

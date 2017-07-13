@@ -4,7 +4,8 @@ var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
 
 var CommentSchema = new Schema({
-    'text': String, // comments of the post
+    'content': String, // comments of the post
+    'userId': ObjectId, // User who commented
     'likes': [ObjectId], // users who liked
     'comments': [ObjectId], // list of comments on this
     'commentedOn': {
