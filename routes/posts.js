@@ -9,7 +9,7 @@ router.get("/", function (req, res) {
     let models = req.app.get('models')
     let pageNum = parseInt(req.query.page) || 0
     pageNum = pageNum <= 1 ? 1 : pageNum
-    console.log('page: ' + pageNum)
+    //console.log('page: ' + pageNum)
 
     models.Feed.find({}, function (err, feeds) {
         if (err) {
