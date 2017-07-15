@@ -83,6 +83,7 @@ router.post("/:commentId/comments", function (req, res) {
                                             } else {
                                                 newComment.commentId = comment._id
                                                 newComment.topCommentId = req.params.commentId
+                                                newComment.commentedOn = comment.commentedOn
                                                 res.status(201).json(newComment)
                                             }
                                         }
