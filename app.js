@@ -1,28 +1,30 @@
-var env = require('./util/env');
-
-var express = require('express');
-var app = express();
-
-var path = require('path');
-var favicon = require('serve-favicon');
-// var mlogger = require('morgan');
-// var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-
-// var logger = require("./util/videohunt-logger");
-
+var env = require('./util/env');
+var express = require('express');
+const mustacheExpress = require('mustache-express');
+const passport = require('passport')
+var routes = require("./routes");
 var session = require('express-session');
-var MongoStore = require('connect-mongo')(session);
+const token = require('./token');
+require('./authentication/jwt');
+require('./authentication/google');
+require('./authentication/facebook');
 
-// Configure database
+var MongoStore = require('connect-mongo')(session);
 var connectionUrl = env.MONGO_CONNECTION_URL;
 var db = require("./db")(connectionUrl);
 var models = require("./models")(db);
+
+// Initialize express
+var app = express();
+
+app.engine('html', mustacheExpress());
+app.set('view engine', 'mustache');
+app.set('views', __dirname + '/public');
+
+// Configure database
 app.set('models', models);
 
-app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-
-// app.use(mlogger('dev'));
 app.use(bodyParser.json({
   type: function () {
     return true;
@@ -30,11 +32,38 @@ app.use(bodyParser.json({
 }));
 
 app.use(bodyParser.urlencoded({ extended: false }));
-// app.use(cookieParser());
 
 // Configure router
-var routes = require("./routes");
-app.use('/', routes)
+app.use('/', routes);
+
+// Passport js
+app.use(passport.initialize());
+
+function generateUserToken(req, res) {
+  // generate jwt token
+  const accessToken = token.generateAccessToken(req.user.id);
+  res.render('authenticated.html', {
+    token: accessToken
+  });
+}
+
+app.get('/api/v1/authentication/google',
+  passport.authenticate('google', { session: false, scope: ['openid', 'profile', 'email'] }))
+app.get('/api/authentication/google/redirect',
+  passport.authenticate('google', { session: false }),
+  generateUserToken)
+
+app.get('/api/v1/authentication/facebook',
+  passport.authenticate('facebook', { session: false }));
+app.get('/api/v1/authentication/facebook/redirect',
+  passport.authenticate('facebook', { session: false }),
+  generateUserToken);
+
+app.get('/api/v1/secure',
+  passport.authenticate(['jwt'], { session: false }),
+  (req, res) => {
+    res.send('Secure response from ' + JSON.stringify(req.user));
+  });
 
 // catch 404 and forward to error handler
 // As it is an API server, we need to send proper error message in Json
