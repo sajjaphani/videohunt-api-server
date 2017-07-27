@@ -13,26 +13,14 @@ function getUserById(id) {
         u.id == id);
 }
 
-// Get a single user by their External ID with a specified provider
-function getUserByExternalId(provider, id) {
-    return users.find((u) =>
-        u.providers.findIndex((p) => p.provider == provider && p.id == id) >= 0);
+// Returns a promise that will give a user record if exists
+function getUserByExternalId(User, profileId) {
+    return User.findOne({profileId: profileId});
 }
 
 // Create a new user
-function createUser(name, provider, id) {
-    const user = {
-        id: users.length,
-        name: name,
-        providers: [
-            {
-                provider: provider,
-                id: id
-            }
-        ]
-    };
-    users.push(user);
-    return user;
+function createUser(User, userObj) {
+    return User.create(userObj);
 }
 
 module.exports = {

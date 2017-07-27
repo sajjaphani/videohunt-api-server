@@ -1,8 +1,10 @@
 var bodyParser = require('body-parser');
 var env = require('./util/env');
 var express = require('express');
+const favicon = require('serve-favicon')
 const mustacheExpress = require('mustache-express');
 const passport = require('passport')
+var path = require('path')
 var routes = require("./routes");
 var session = require('express-session');
 const token = require('./token');
@@ -18,6 +20,7 @@ var models = require("./models")(db);
 // Initialize express
 var app = express();
 
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')))
 app.engine('html', mustacheExpress());
 app.set('view engine', 'mustache');
 app.set('views', __dirname + '/public');
@@ -41,7 +44,7 @@ app.use(passport.initialize());
 
 function generateUserToken(req, res) {
   // generate jwt token
-  const accessToken = token.generateAccessToken(req.user.id);
+  const accessToken = token.generateAccessToken(req.user.profileId);
   res.render('authenticated.html', {
     token: accessToken
   });
