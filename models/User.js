@@ -19,4 +19,14 @@ var UserSchema = new Schema({
 
 UserSchema.index({ email: 1 }, { unique: true });
 
+UserSchema.statics.findUsers = function (users, callback) {
+    this.find({
+                '_id': {
+                    $in: users
+                }
+            }, function (err, users) {
+              callback(err, users)
+          })
+}
+
 module.exports = UserSchema

@@ -1,126 +1,69 @@
-const router = require('express').Router();
-
+const router = require('express').Router()
+const {parseFeedQuery} = require('./query-parser')
 // TODO we need to change this as we are supposed to use OAuth 2.0?
 // TODO We need to omit __v before sending the resutls
 // TODO can we extract the db access logic separately?
-// GET all (most frequent) posts
-// Currently we are fetching all (we should introduce pagination)
+
 router.get("/", function (req, res) {
+    // Get the logged in user here
+    // console.log(typeof req.query.since)
+    // console.log(parseInt(req.query.since))
+    let dbParams = parseFeedQuery(req.query, 3)
+    console.log(dbParams)
     let models = req.app.get('models')
-    let pageNum = parseInt(req.query.page) || 0
-    pageNum = pageNum <= 1 ? 1 : pageNum
-    //console.log('page: ' + pageNum)
-
-    models.Feed.find({}, function (err, feeds) {
-        if (err) {
+    models.Feed.findFeeds(dbParams, function (err, feeds) {
+        if (err)
             res.send(err)
-        } else {
-            var page = paginate(feeds, pageNum, 3);
-            if (page.nextPage) {
-                let link = req.originalUrl.split("?").shift()
-                res.set("Link", link + "?page=" + page.nextPage);
-            }
-            //let feed = { 'feed': {}, 'posts': {} }
-
-            var posts = []
-            var feeds = {}
-            page.pageData.forEach(function (feed) {
-                feeds[feed.date.toISOString()] = feed.posts
-                posts = posts.concat(feed.posts)
-                //console.log(posts)
+        else {
+            let postIds = []
+            let feedsObj = {}
+            feeds.data.forEach(function (feed) {
+                feedsObj[feed.date.toISOString()] = feed.posts
+                postIds = postIds.concat(feed.posts)
             });
 
-            models.Post.find({
-                '_id': {
-                    $in: posts
-                }
-            }, function (err, posts) {
-                if (err) {
-                    console.error(err)
+            models.Post.findPosts(postIds, function (err, posts) {
+                if (err)
                     res.send(err)
-                } else {
+                else {
+                    let user = { id: '' }
                     var users = []
                     var userids = []
-                    var postFeed = posts.reduce(function (posts, post) {
-                        posts[post._id] = post
+                    var postFeed = posts.reduce(function (postsObj, post) {
+                        if (post.likes.indexOf(user.id))
+                            post.liked = true
+                        else
+                            post.liked = false
+                        post.likeCount = post.likes.length
+                        postsObj[post._id] = post
                         if (userids.indexOf(post.userId.toString()) === -1) {
                             userids.push(post.userId.toString())
                             users.push(post.userId)
                         }
-
-                        return posts
+                        return postsObj
                     }, {});
-
-                    models.User.find({
-                        '_id': {
-                            $in: users
-                        }
-                    }, function (err, users) {
+                   
+                    models.User.findUsers(users, function (err, users) {
                         if (err) {
                             console.error(err)
                             res.send(err)
                         } else {
-                             var userFeed = users.reduce(function (users, user) {
+                            var userFeed = users.reduce(function (users, user) {
                                 users[user._id] = user
-                                   return users
+                                return users
                             }, {});
 
-                            res.json({ 'feed': feeds, 'posts': postFeed, 'users' : userFeed});
+                            let feedResponse = {data:{ 'feed': feedsObj, 'posts': postFeed, 'users': userFeed }}
+                            if(feeds.pagination)
+                                feedResponse.pagination = feeds.pagination
+
+                            res.json(feedResponse);
                         }
                     });
                 }
-            });
-
-            // res.set("X-Total-Count", movieList.length);
-
+            })
         }
-    }).sort({ 'date': -1 });
-
-    // We can also identify whether next page exists or not by querying one more record than the page size
-    // Then use 3 records if there are more than 3
-    // We need to see both of the approaches and choose the better one
-
-    // .skip(3 * (pageNum - 1))
-    // .limit(3)
-
-    // models.Post.find({}, function (err, posts) {
-    //     if (err) {
-    //         console.error(err)
-    //         res.send(err)
-    //     } else {
-    //         let feed = { 'feed': {}, 'posts': {} }
-    //         var result = posts.reduce(function (feed, post) {
-    //             let map = feed['feed']
-    //             let posts = feed['posts']
-    //             posts[post._id] = post
-
-    //             let key = new Date(post.postedOn).toDateString()
-    //             options = map[key] || []
-    //             options.push(post._id);
-    //             map[key] = options
-
-    //             return feed;
-    //         }, feed);
-
-    //         // We should filter the users based on selected posts
-    //         models.User.find({}, function (err, users) {
-    //             if (err || !users) {
-    //                 console.log(err)
-    //                 res.status(200).json(feed);
-    //             }
-    //             if (users) {
-    //                 let userss = users.reduce(function (userFd, user) {
-    //                     userFd[user._id] = user
-    //                     return userFd
-    //                 }, {});
-    //                 console.log(userss)
-    //                 feed['users'] = userss
-
-    //                 res.status(200).json(feed);
-    //             }
-    //         });
-    //     }
-    // }).sort({ 'postedOn': -1 });
+    })
 });
 
 // GET the details of post (by its id)
@@ -147,7 +90,8 @@ router.post('/', function (req, res) {
                     title: postData.title,
                     subtitle: postData.subtitle,
                     url: postData.url,
-                    userId: user._id
+                    userId: user._id,
+                    postedOn: postData.postedOn
                 }
                 new models.Post(newPost).save(function (err, post) {
                     if (err) {
@@ -315,18 +259,5 @@ router.post("/:postId/like", function (req, res) {
         }
     });
 });
-
-function paginate(sourceList, pageNum, pageSize) {
-    var totalCount = sourceList.length;
-    var lastPage = Math.ceil(totalCount / pageSize);
-    var begin = (pageNum - 1) * pageSize;
-    var end = begin + pageSize;
-    var pageList = sourceList.slice(begin, end);
-    return {
-        pageData: pageList,
-        nextPage: pageNum < lastPage ? pageNum + 1 : null,
-        pageCount: totalCount
-    }
-}
 
 module.exports = router;

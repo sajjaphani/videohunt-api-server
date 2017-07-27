@@ -18,4 +18,14 @@ var PostSchema = new Schema({
 
 PostSchema.index({ url: 1 }, { unique: true });
 
+PostSchema.statics.findPosts = function (posts, callback) {
+    this.find({
+                '_id': {
+                    $in: posts
+                }
+            }, function (err, posts) {
+              callback(err, posts)
+          })
+}
+
 module.exports = PostSchema
