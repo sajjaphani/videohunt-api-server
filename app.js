@@ -63,9 +63,20 @@ app.get('/api/v1/authentication/facebook/redirect',
   generateUserToken);
 
 app.get('/api/v1/secure',
-  passport.authenticate(['jwt'], { session: false }),
-  (req, res) => {
-    res.send('Secure response from ' + JSON.stringify(req.user));
+  (req, res, next) => {
+    passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+      if (err)
+        return next(err);
+      if (user === false) {
+        // User not loggedin, so send feed/comments without logged in user context
+        console.log('User not logged in');
+        res.json({msg:'User not logged in'})
+      } else {
+        // User loggedin so send feed/comments with user context
+        console.log('User logged in');
+        res.json({msg: 'User logged in', user: user})
+      }
+    })(req, res, next);
   });
 
 // catch 404 and forward to error handler
