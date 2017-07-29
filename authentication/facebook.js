@@ -2,7 +2,7 @@ const passport = require('passport');
 const passportFacebook = require('passport-facebook');
 const Promise = require('bluebird');
 const config = require('../config');
-const users = require('../users');
+const users = require('../services/users');
 
 
 const passportConfig = {
@@ -16,7 +16,7 @@ const passportConfig = {
 if (passportConfig.clientID) {
     passport.use(new passportFacebook.Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
         let models = req.app.get('models')
-        users.getUserByExternalId(models.User, profile.id).then(doc => {
+        users.getUserById(models.User, profile.id).then(doc => {
             if(doc) {
                 return doc;
             } else {

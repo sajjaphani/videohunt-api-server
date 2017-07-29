@@ -1,7 +1,7 @@
 const passport = require('passport');
 const passportJwt = require('passport-jwt');
 const config = require('../config');
-const users = require('../users');
+const users = require('../services/users');
 
 const jwtOptions = {
     jwtFromRequest: passportJwt.ExtractJwt.fromAuthHeader(),
@@ -11,9 +11,5 @@ const jwtOptions = {
 };
 
 passport.use(new passportJwt.Strategy(jwtOptions, (payload, done) => {
-    const user = users.getUserById(parseInt(payload.sub));
-    if (user) {
-        return done(null, user, payload);
-    }
     return done(null, payload);
 }));

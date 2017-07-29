@@ -7,7 +7,7 @@ const passport = require('passport')
 var path = require('path')
 var routes = require("./routes");
 var session = require('express-session');
-const token = require('./token');
+const token = require('./util/token');
 require('./authentication/jwt');
 require('./authentication/google');
 require('./authentication/facebook');
