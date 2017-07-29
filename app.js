@@ -44,7 +44,7 @@ app.use(passport.initialize());
 
 function generateUserToken(req, res) {
   // generate jwt token
-  const accessToken = token.generateAccessToken(req.user.profileId);
+  const accessToken = token.generateAccessToken(req.user);
   res.render('authenticated.html', {
     token: accessToken
   });

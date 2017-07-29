@@ -10,21 +10,19 @@ const passportConfig = {
     clientSecret: config.get('authentication.facebook.clientSecret'),
     callbackURL: 'http://localhost:3000/api/v1/authentication/facebook/redirect',
     passReqToCallback: true,
-    profileFields: ['emails', 'displayName', 'profileUrl']
+    profileFields: ['emails', 'displayName', 'profileUrl', 'photos', 'name']
 };
 
 if (passportConfig.clientID) {
     passport.use(new passportFacebook.Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
         let models = req.app.get('models')
-
-        
         users.getUserByExternalId(models.User, profile.id).then(doc => {
             if(doc) {
                 return doc;
             } else {
                 profile.displayName, 'facebook', profile.id
                 const user = {
-                    name: profile.displayName,
+                    name: profile.name.givenName,
                     provider: 'facebook',
                     profileId: profile.id,
                     email: profile.email
@@ -32,12 +30,19 @@ if (passportConfig.clientID) {
                 return users.createUser(models.User, user);
             }
         })
-        .then(doc => {
-            done(null, doc);
+        .then(user => {
+            let transformedUser = {
+                id: user.id,
+                profileId: user.profileId,
+                name: profile.name.givenName,//user.name,
+                provider: 'facebook',
+                picture: profile.photos ? profile.photos[0].value : '/images/logo.png'
+            };
+            done(null, transformedUser);
         })
         .catch(err => {
-            done(err, null);
+            done(err, false);
         });
-      
+        
     }));
 }

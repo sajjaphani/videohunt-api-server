@@ -15,5 +15,5 @@ passport.use(new passportJwt.Strategy(jwtOptions, (payload, done) => {
     if (user) {
         return done(null, user, payload);
     }
-    return done();
+    return done(null, payload);
 }));
