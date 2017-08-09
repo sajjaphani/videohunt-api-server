@@ -1,10 +1,87 @@
 const router = require('express').Router()
-const {parseFeedQuery} = require('./query-parser')
+const { parseFeedQuery } = require('./query-parser')
+const passport = require('passport')
 // TODO we need to change this as we are supposed to use OAuth 2.0?
 // TODO We need to omit __v before sending the resutls
 // TODO can we extract the db access logic separately?
+function getFeedData(queryParams, user, req, res) {
+    let models = req.app.get('models')
+    models.Feed.findFeeds(queryParams, function (err, feeds) {
+        if (err)
+            res.send(err)
+        else {
+            let postIds = []
+            let feedsObj = {}
+            feeds.data.forEach(function (feed) {
+                feedsObj[feed.date.toISOString()] = feed.posts
+                postIds = postIds.concat(feed.posts)
+            });
 
-router.get("/", function (req, res) {
+            models.Post.findPosts(postIds, function (err, posts) {
+                if (err)
+                    res.send(err)
+                else {
+                    let user = { id: '' }
+                    var users = []
+                    var userids = []
+                    var postFeed = posts.reduce(function (postsObj, post) {
+                        if (post.likes.indexOf(user.id))
+                            post.liked = true
+                        else
+                            post.liked = false
+                        post.likeCount = post.likes.length
+                        postsObj[post._id] = post
+                        if (userids.indexOf(post.userId.toString()) === -1) {
+                            userids.push(post.userId.toString())
+                            users.push(post.userId)
+                        }
+                        return postsObj
+                    }, {});
+
+                    models.User.findUsers(users, function (err, users) {
+                        if (err) {
+                            console.error(err)
+                            res.send(err)
+                        } else {
+                            var userFeed = users.reduce(function (users, user) {
+                                users[user._id] = user
+                                return users
+                            }, {});
+
+                            let feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed } }
+                            if (feeds.pagination)
+                                feedResponse.pagination = feeds.pagination
+                            
+                            res.setHeader('Access-Control-Allow-Origin', '*');
+                            res.json(feedResponse);
+                        }
+                    });
+                }
+            })
+        }
+    })
+}
+
+router.get('/',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                console.log('User not logged in...')
+                let dbParams = parseFeedQuery(req.query, 3)
+                console.log(dbParams)
+                getFeedData(dbParams, null, req, res)
+            } else {
+                // User loggedin so send feed/comments with user context
+                console.log('User logged in');
+                getFeedData(dbParams, user, req, res)
+                res.json({ msg: 'User logged in', user: user })
+            }
+        })(req, res, next);
+    });
+
+router.get("/x", function (req, res) {
     // Get the logged in user here
     // console.log(typeof req.query.since)
     // console.log(parseInt(req.query.since))
@@ -42,7 +119,7 @@ router.get("/", function (req, res) {
                         }
                         return postsObj
                     }, {});
-                   
+
                     models.User.findUsers(users, function (err, users) {
                         if (err) {
                             console.error(err)
@@ -53,8 +130,8 @@ router.get("/", function (req, res) {
                                 return users
                             }, {});
 
-                            let feedResponse = {data:{ 'feed': feedsObj, 'posts': postFeed, 'users': userFeed }}
-                            if(feeds.pagination)
+                            let feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed } }
+                            if (feeds.pagination)
                                 feedResponse.pagination = feeds.pagination
 
                             res.json(feedResponse);
@@ -130,9 +207,24 @@ router.post('/', function (req, res) {
 
 // GET the comments for the post (by its id)
 router.get("/:postId/comments", function (req, res) {
+    let dbParams = parseQuery(req.query, 5)
+    console.log(dbParams)
     // This queries comments for a single level only, we need to query 2 levels as it is our plan to proceed
     console.log('Comments for: ' + req.params.postId)
     let models = req.app.get('models');
+
+    models.Post.findPostById(req.params.postId, function (err, post) {
+        if (err) {
+            res.send(err)
+        } else {
+            if (post) {
+                console.log(post)
+            } else {
+                res.status(404).json({ postId: req.params.postI, messge: 'Not Found' });
+            }
+        }
+    })
+
     models.Post.findById(req.params.postId, function (err, post) {
         if (err) {
             console.log(err) // send the error to the user

@@ -13,7 +13,7 @@ var PostSchema = new Schema({
   'postedOn': {
     type: Date,
     default: Date.now
-  }
+  } // posted_time may be appropriate
 });
 
 PostSchema.index({ url: 1 }, { unique: true });
@@ -26,6 +26,12 @@ PostSchema.statics.findPosts = function (posts, callback) {
             }, function (err, posts) {
               callback(err, posts)
           })
+}
+
+PostSchema.statics.findPostById = function (postId, callback) {
+    this.findById(req.params.postId, function (err, post) {
+            callback(err, post)
+        })
 }
 
 module.exports = PostSchema

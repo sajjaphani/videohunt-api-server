@@ -45,6 +45,7 @@ app.use(passport.initialize());
 function generateUserToken(req, res) {
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
+  
   res.render('authenticated.html', {
     token: accessToken
   });
@@ -77,6 +78,13 @@ app.get('/api/v1/secure',
         res.json({msg: 'User logged in', user: user})
       }
     })(req, res, next);
+  });
+
+  app.get('/api/v1/secure2',
+  passport.authenticate(['jwt'], { session: false }),
+  (req, res, next) => {
+    
+     res.json({msg:'secure2'})
   });
 
 // catch 404 and forward to error handler
