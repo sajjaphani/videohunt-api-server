@@ -34,7 +34,7 @@ if (passportConfig.clientID) {
             let transformedUser = {
                 id: user.id,
                 profileId: user.profileId,
-                name: profile.name.givenName,//user.name,
+                name: profile.name.displayName,//user.name,
                 provider: 'facebook',
                 picture: profile.photos ? profile.photos[0].value : '/images/logo.png'
             };
