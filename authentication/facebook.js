@@ -22,7 +22,7 @@ if (passportConfig.clientID) {
             } else {
                 profile.displayName, 'facebook', profile.id
                 const user = {
-                    name: profile.name.givenName,
+                    name: profile.name.displayName,
                     provider: 'facebook',
                     profileId: profile.id,
                     email: profile.email
