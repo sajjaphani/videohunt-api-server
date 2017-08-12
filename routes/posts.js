@@ -26,12 +26,14 @@ function getFeedData(queryParams, user, req, res) {
                     var userids = []
                     var commentIds = []
                     var postFeed = posts.reduce(function (postsObj, post) {
-                        if (post.likes.indexOf(user.id))
-                            post.liked = true
-                        else
-                            post.liked = false
-                        post.likeCount = post.likes.length
-                        postsObj[post._id] = post
+                        let postObj = post.toJSON()
+                        let likes = postObj.likes
+                        postObj.likes = { data: likes }
+                        let canLike = user == false ? false : true
+                        let hasLiked = post.likes.indexOf(user.id) > -1 ? true : false
+                        postObj.likes = {data : likes, summary : { count: likes.length, can_like: canLike, has_liked: hasLiked }}
+
+                        postsObj[post._id] = postObj
                         commentIds = commentIds.concat(post.comments)
                         if (userids.indexOf(post.userId.toString()) === -1) {
                             userids.push(post.userId.toString())
@@ -392,7 +394,41 @@ router.post("/:postId/comments_x", function (req, res) {
 });
 
 // POST Handle likes (like/unlike) for existing post (by its id)
-router.post("/:postId/like", function (req, res) {
+router.post('/:postId/like',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                res.status(401).json({ message: 'Unauthorized' });
+            } else {
+                // User loggedin 
+                let likeData = req.body
+                let models = req.app.get('models');
+                if (likeData.liked) {
+                    models.Post.findByIdAndUpdate(req.params.postId,
+                        { $addToSet: { likes: user.id } },
+                        { safe: true, new: true }, function (err, post) {
+                            if (err) {
+                                return next(err);
+                            }
+                            res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
+                        });
+                } else {
+                    models.Post.findByIdAndUpdate(req.params.postId,
+                        { $pull: { likes: user.id } },
+                        { safe: true, new: true }, function (err, post) {
+                            if (err) {
+                                return next(err);
+                            }
+                            res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
+                        });
+                }
+            }
+        })(req, res, next);
+    });
+
+router.post("/:postId/like_x", function (req, res) {
     let likeData = req.body
     let models = req.app.get('models');
     models.User.findOne({ email: likeData.user }, '_id', function (err, user) {

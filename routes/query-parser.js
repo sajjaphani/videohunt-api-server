@@ -31,16 +31,16 @@ function parseQuery(params, givenLimit) {
         query = QUERY_BY_DATE_DEFAULT
     }
 
-    let commentsSummary = ('true' == params.comments_summary)
-    let likesSummary = ('true' == params.likes_summary)
+    let commentsSummary = params.comments_summary || 'true'
+    let likesSummary = params.likes_summary || 'true'
 
     return {
         limit: limit,
         since: since,
         until: until,
         query: query,
-        commentsSummary: commentsSummary,
-        likesSummary: likesSummary
+        commentsSummary: commentsSummary == 'true',
+        likesSummary: likesSummary == 'true'
     }
 }
 
