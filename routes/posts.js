@@ -21,7 +21,6 @@ function getFeedData(queryParams, user, req, res) {
                 if (err)
                     res.send(err)
                 else {
-                    let user = { id: '' }
                     var users = []
                     var userids = []
                     var commentIds = []
@@ -29,9 +28,10 @@ function getFeedData(queryParams, user, req, res) {
                         let postObj = post.toJSON()
                         let likes = postObj.likes
                         postObj.likes = { data: likes }
-                        let canLike = user == false ? false : true
-                        let hasLiked = post.likes.indexOf(user.id) > -1 ? true : false
-                        postObj.likes = {data : likes, summary : { count: likes.length, can_like: canLike, has_liked: hasLiked }}
+                        let canLike = user ? true : false
+                        let uid = user ? user.id : ''
+                        let hasLiked = post.likes.indexOf(uid) > -1 ? true : false
+                        postObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
 
                         postsObj[post._id] = postObj
                         commentIds = commentIds.concat(post.comments)
@@ -88,7 +88,6 @@ function getFeedData(queryParams, user, req, res) {
 
 router.get('/',
     (req, res, next) => {
-        console.log('Hey')
         let dbParams = parseFeedQuery(req.query, 3)
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
@@ -99,7 +98,7 @@ router.get('/',
                 getFeedData(dbParams, null, req, res)
             } else {
                 // User loggedin so send feed/comments with user context
-                console.log('User logged in.....');
+                console.log('User logged in.....', user);
                 getFeedData(dbParams, user, req, res)
                 //res.json({ msg: 'User logged in', user: user })
             }
