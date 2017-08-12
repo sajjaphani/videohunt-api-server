@@ -27,12 +27,14 @@ function getFeedData(queryParams, user, req, res) {
                     var postFeed = posts.reduce(function (postsObj, post) {
                         let postObj = post.toJSON()
                         let likes = postObj.likes
-                        postObj.likes = { data: likes }
                         let canLike = user ? true : false
                         let uid = user ? user.id : ''
                         let hasLiked = post.likes.indexOf(uid) > -1 ? true : false
                         postObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
 
+                        let comments = postObj.comments
+                        let canComment = user ? true : false
+                        postObj.comments = { data: comments, summary: { count: comments.length, can_comment: canComment } }
                         postsObj[post._id] = postObj
                         commentIds = commentIds.concat(post.comments)
                         if (userids.indexOf(post.userId.toString()) === -1) {
@@ -93,12 +95,9 @@ router.get('/',
             if (err)
                 return next(err);
             if (user === false) {
-                console.log('User not logged in...')
-                console.log(dbParams)
                 getFeedData(dbParams, null, req, res)
             } else {
                 // User loggedin so send feed/comments with user context
-                console.log('User logged in.....', user);
                 getFeedData(dbParams, user, req, res)
                 //res.json({ msg: 'User logged in', user: user })
             }
