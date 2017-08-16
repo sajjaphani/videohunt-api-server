@@ -104,68 +104,6 @@ router.get('/',
         })(req, res, next);
     });
 
-router.get("/x", function (req, res) {
-    // Get the logged in user here
-    // console.log(typeof req.query.since)
-    // console.log(parseInt(req.query.since))
-    let dbParams = parseFeedQuery(req.query, 3)
-    console.log(dbParams)
-    let models = req.app.get('models')
-    models.Feed.findFeeds(dbParams, function (err, feeds) {
-        if (err)
-            res.send(err)
-        else {
-            let postIds = []
-            let feedsObj = {}
-            feeds.data.forEach(function (feed) {
-                feedsObj[feed.date.toISOString()] = feed.posts
-                postIds = postIds.concat(feed.posts)
-            });
-
-            models.Post.findPosts(postIds, function (err, posts) {
-                if (err)
-                    res.send(err)
-                else {
-                    let user = { id: '' }
-                    var users = []
-                    var userids = []
-                    var postFeed = posts.reduce(function (postsObj, post) {
-                        if (post.likes.indexOf(user.id))
-                            post.liked = true
-                        else
-                            post.liked = false
-                        post.likeCount = post.likes.length
-                        postsObj[post._id] = post
-                        if (userids.indexOf(post.userId.toString()) === -1) {
-                            userids.push(post.userId.toString())
-                            users.push(post.userId)
-                        }
-                        return postsObj
-                    }, {});
-
-                    models.User.findUsers(users, function (err, users) {
-                        if (err) {
-                            console.error(err)
-                            res.send(err)
-                        } else {
-                            var userFeed = users.reduce(function (users, user) {
-                                users[user._id] = user
-                                return users
-                            }, {});
-
-                            let feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed } }
-                            if (feeds.pagination)
-                                feedResponse.pagination = feeds.pagination
-
-                            res.json(feedResponse);
-                        }
-                    });
-                }
-            })
-        }
-    })
-});
-
 // GET the details of post (by its id)
 // This will further accepts query parameters such as related/recommendations etc
 router.get("/:postId", function (req, res) {
@@ -174,7 +112,52 @@ router.get("/:postId", function (req, res) {
 });
 
 // POST a new video
-router.post('/', function (req, res) {
+router.post('/',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                res.status(401).json({ message: 'Unauthorized' });
+            } else {
+                let postData = req.body
+                console.log(postData)
+                let models = req.app.get('models')
+                let newPost = {
+                    title: postData.title,
+                    subtitle: postData.subtitle,
+                    url: postData.url,
+                    userId: user.id,
+                }
+                // res.status(201).json(newPost);
+                new models.Post(newPost).save(function (err, post) {
+                    if (err) {
+                        console.log(err) // send the error to the user
+                        res.send(err)
+                    } else {
+                        let date = new Date(post.postedOn.getTime());
+                        // We want date part only (set to its midnight)
+                        date.setHours(12, 0, 0, 0);
+                        console.log(date)
+                        var query = { date: date },
+                            update = { $push: { posts: post._id } },
+                            options = { upsert: true, new: true };
+                        // Find the document
+                        models.Feed.findOneAndUpdate(query, update, options, function (err, commentsFeed) {
+                            if (err) {
+                                console.log(err)
+                                res.send(err)
+                            } else {
+                                res.status(201).json({feedKey:date, post:post});
+                            }
+                        });
+                    }
+                });
+            }
+        })(req, res, next);
+    });
+
+router.post('/x', function (req, res) {
     let postData = req.body
     let models = req.app.get('models')
     // We are trying to find the one by email, can we get the same from the client?

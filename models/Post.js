@@ -10,6 +10,8 @@ var PostSchema = new Schema({
   'comments': [ObjectId], // list of comments on this
   'likes': [ObjectId], // Users who liked this
   'userId': ObjectId, // User who posted this
+  'language': String, // Primary Language
+  'category': String, // Primary Category
   'postedOn': {
     type: Date,
     default: Date.now
