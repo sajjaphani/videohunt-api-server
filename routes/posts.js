@@ -55,7 +55,19 @@ function getFeedData(queryParams, user, req, res) {
                         } else {
                             // console.log(comments)
                             commentsFeed = comments.reduce(function (comments, comment) {
-                                comments[comment._id] = comment
+                                let commentObj = comment.toJSON()
+                                let likes = commentObj.likes
+                                let canLike = user ? true : false
+                                let uid = user ? user.id : ''
+                                let hasLiked = comment.likes.indexOf(uid) > -1 ? true : false
+                                commentObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
+
+                                let commentsObj = commentObj.comments
+                                delete commentObj.comments
+                                let canComment = user ? true : false
+                                commentObj.replies = { data: commentsObj, summary: { count: commentsObj.length, can_comment: canComment } }
+
+                                comments[comment._id] = commentObj
                                 if (userids.indexOf(comment.userId.toString()) === -1) {
                                     userids.push(comment.userId.toString())
                                     users.push(comment.userId)
@@ -304,6 +316,21 @@ router.post('/:postId/comments',
                                                 newComment.commentId = comment._id
                                                 newComment.postId = post._id
                                                 newComment.commentedOn = comment.commentedOn
+                                                newComment.likes = {
+                                                    data: [],
+                                                    summary: {
+                                                        count: 0,
+                                                        can_like: true,
+                                                        has_liked: true
+                                                    }
+                                                }
+                                                newComment.replies = {
+                                                    data: [],
+                                                    summary: {
+                                                        count: 0,
+                                                        can_comment: true
+                                                    }
+                                                }
                                                 res.status(201).json(newComment)
                                             }
                                         }
