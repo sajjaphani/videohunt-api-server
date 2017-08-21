@@ -169,60 +169,6 @@ router.post('/',
         })(req, res, next);
     });
 
-router.post('/x', function (req, res) {
-    let postData = req.body
-    let models = req.app.get('models')
-    // We are trying to find the one by email, can we get the same from the client?
-    models.User.findOne({ email: postData.user }, '_id', function (err, user) {
-        if (err) {
-            console.error(err);
-            res.send(err)
-        } else {
-            if (user) {
-                // TODO remove date
-                // let dt = new Date(Date.parse(postData.postedOn));
-                let newPost = {
-                    title: postData.title,
-                    subtitle: postData.subtitle,
-                    url: postData.url,
-                    userId: user._id,
-                    postedOn: postData.postedOn
-                }
-                new models.Post(newPost).save(function (err, post) {
-                    if (err) {
-                        console.log(err) // send the error to the user
-                        res.send(err)
-                    } else {
-                        let date = new Date(post.postedOn.getTime());
-                        // We want date part only (set to its midnight)
-                        date.setHours(12, 0, 0, 0);
-                        console.log(date)
-                        var query = { date: date },
-                            update = { $push: { posts: post._id } },
-                            options = { upsert: true, new: true };
-                        // Find the document
-                        models.Feed.findOneAndUpdate(query, update, options, function (err, commentsFeed) {
-                            if (err) {
-                                console.log(err)
-                                res.send(err)
-                            } else {
-                                res.status(201).json(post);
-                            }
-                        });
-                    }
-                });
-            } else {
-                // Send validation error to user
-            }
-        }
-    });
-
-    // Location Header
-    // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.30
-    // Come to here means there should be some error
-    // res.send('Something went wront... try again later')
-});
-
 // GET the comments for the post (by its id)
 router.get("/:postId/comments", function (req, res) {
     let dbParams = parseQuery(req.query, 5)
@@ -346,61 +292,6 @@ router.post('/:postId/comments',
         })(req, res, next);
     });
 
-router.post("/:postId/comments_x", function (req, res) {
-    let commentData = req.body
-    let models = req.app.get('models');
-    models.User.findOne({ email: commentData.user }, '_id', function (err, user) {
-        if (err) {
-            console.error(err);
-            res.send(err)
-        } else {
-            if (user) {
-                models.Post.findById(req.params.postId, function (err, post) {
-                    if (err) {
-                        console.log(err) // send the error to the user
-                        res.send(err)
-                    } else {
-                        if (post) {
-                            let newComment = {
-                                content: commentData.content,
-                                userId: user._id
-                            }
-                            new models.Comment(newComment).save(function (err, comment) {
-                                if (err) {
-                                    console.log(err) // send the error to the user
-                                    res.send(err)
-                                } else {
-                                    console.log(comment)
-                                    models.Post.findByIdAndUpdate(post._id,
-                                        { $push: { comments: comment._id } },
-                                        { safe: true, upsert: true, new: true },
-                                        function (err, model) {
-                                            if (err) {
-                                                // We should rollback comment here
-                                                console.log(err)
-                                                res.send(err)
-                                            } else {
-                                                newComment.commentId = comment._id
-                                                newComment.postId = post._id
-                                                newComment.commentedOn = comment.commentedOn
-                                                res.status(201).json(newComment)
-                                            }
-                                        }
-                                    );
-                                }
-                            });
-                        } else {
-                            res.status(404).json({ messge: 'Not Found' });
-                        }
-                    }
-                });
-            } else {
-                res.status(401).json({ message: 'Unauthorized' });
-            }
-        }
-    });
-});
-
 // POST Handle likes (like/unlike) for existing post (by its id)
 router.post('/:postId/like',
     (req, res, next) => {
@@ -435,43 +326,5 @@ router.post('/:postId/like',
             }
         })(req, res, next);
     });
-
-router.post("/:postId/like_x", function (req, res) {
-    let likeData = req.body
-    let models = req.app.get('models');
-    models.User.findOne({ email: likeData.user }, '_id', function (err, user) {
-        if (err) {
-            console.error(err);
-            res.send(err)
-        } else {
-            if (user) {
-                if (likeData.liked) {
-                    models.Post.findByIdAndUpdate(req.params.postId,
-                        { $addToSet: { likes: user._id } },
-                        { safe: true, new: true }, function (err, commentsFeed) {
-                            if (err) {
-                                console.log(err);
-                            }
-                            console.log("commentsFeed: " + commentsFeed);
-                            res.status(200).json({ liked: likeData.liked, userId: user._id, postId: commentsFeed._id })
-                        });
-                } else {
-                    console.log('here... ' + user._id)
-                    models.Post.findByIdAndUpdate(req.params.postId,
-                        { $pull: { likes: user._id } },
-                        { safe: true, new: true }, function (err, commentsFeed) {
-                            if (err) {
-                                console.log(err);
-                            }
-                            console.log("commentsFeed: " + commentsFeed);
-                            res.status(200).json({ liked: likeData.liked, userId: user._id, postId: commentsFeed._id })
-                        });
-                }
-            } else {
-                res.status(401).json({ message: 'Unauthorized' });
-            }
-        }
-    });
-});
 
 module.exports = router;

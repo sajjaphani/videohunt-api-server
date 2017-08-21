@@ -71,41 +71,6 @@ router.get('/:commentId/comments',
         })(req, res, next);
     });
 
-router.get("/:commentId/comments_x", function (req, res) {
-    console.log('Comments for: ' + req.params.commentId)
-    let models = req.app.get('models');
-    models.Comment.findById(req.params.commentId, function (err, comment) {
-        if (err) {
-            console.log(err) // send the error to the user
-            res.send(err)
-        } else {
-            if (comment) {
-                console.log(comment)
-                let comments = comment.comments
-                models.Comment.find({
-                    _id: {
-                        $in: comments
-                    }
-                }, function (err, comments) {
-                    if (err) {
-                        console.error(err)
-                        res.send(err)
-                    } else {
-                        console.log(comments)
-                        var result = comments.reduce(function (comments, comment) {
-                            comments[comment._id] = comment
-                            return comments;
-                        }, {});
-                        res.status(200).json(result);
-                    }
-                });
-            } else {
-                res.status(404).json({ messge: 'Not Found' });
-            }
-        }
-    });
-});
-
 // POST a new reply on an existing comment (by its id)
 router.post('/:commentId/comments',
     (req, res, next) => {
@@ -179,42 +144,43 @@ router.post('/:commentId/comments',
     });
 
 // POST Handle likes (like/unlike) for existing second level comment (by its id)
-router.post("/:commentId/like", function (req, res) {
-    let likeData = req.body
-    let models = req.app.get('models');
-    models.User.findOne({ email: likeData.user }, '_id', function (err, user) {
-        if (err) {
-            console.error(err);
-            res.send(err)
-        } else {
-            if (user) {
+router.post('/:commentId/like',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                res.status(401).json({ message: 'Unauthorized' });
+            } else {
+                // User loggedin 
+                let likeData = req.body
+                let models = req.app.get('models');
                 if (likeData.liked) {
                     models.Comment.findByIdAndUpdate(req.params.commentId,
-                        { $addToSet: { likes: user._id } },
+                        { $addToSet: { likes: user.id } },
                         { safe: true, new: true }, function (err, result) {
                             if (err) {
                                 console.log(err);
+                                return next(err);
                             }
                             console.log("RESULT: " + result);
-                            res.status(200).json({ liked: likeData.liked, userId: user._id, commentId: result._id, topCommentId: req.params.commentId })
+                            res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: result.id })
                         });
                 } else {
-                    console.log('here... ' + user._id)
+                    console.log('here... ' + user.id)
                     models.Comment.findByIdAndUpdate(req.params.commentId,
-                        { $pull: { likes: user._id } },
+                        { $pull: { likes: user.id } },
                         { safe: true, new: true }, function (err, result) {
                             if (err) {
                                 console.log(err);
+                                return next(err);
                             }
                             console.log("RESULT: " + result);
-                            res.status(200).json({ liked: likeData.liked, userId: user._id, commentId: result._id, topCommentId: req.params.commentId })
+                            res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: result.id })
                         });
                 }
-            } else {
-                res.status(401).json({ message: 'Unauthorized' });
             }
-        }
+        })(req, res, next);
     });
-});
 
 module.exports = router;
