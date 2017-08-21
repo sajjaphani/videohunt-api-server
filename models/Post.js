@@ -31,7 +31,7 @@ PostSchema.statics.findPosts = function (posts, callback) {
 }
 
 PostSchema.statics.findPostById = function (postId, callback) {
-    this.findById(req.params.postId, function (err, post) {
+    this.findById(postId, function (err, post) {
             callback(err, post)
         })
 }

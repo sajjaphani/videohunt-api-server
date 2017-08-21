@@ -116,12 +116,101 @@ router.get('/',
         })(req, res, next);
     });
 
+function getPost(postId, user, req, res) {
+    let models = req.app.get('models')
+    models.Post.findPostById(postId, function (err, post) {
+        if (err) {
+            res.send(err)
+        } else {
+            if (post) {
+                console.log(post)
+                var users = []
+                var userids = []
+                var commentIds = []
+                let postObj = post.toJSON()
+                let likes = postObj.likes
+                let canLike = user ? true : false
+                let uid = user ? user.id : ''
+                let hasLiked = post.likes.indexOf(uid) > -1 ? true : false
+                postObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
+                let postFeed = {}
+                postFeed[postObj.id] = postObj
+                let comments = postObj.comments
+                let canComment = user ? true : false
+                postObj.comments = { data: comments, summary: { count: comments.length, can_comment: canComment } }
+                userids.push(post.userId.toString())
+                users.push(post.userId)
+
+                let commentsFeed = {}
+                models.Comment.find({
+                    _id: {
+                        $in: comments
+                    }
+                }, function (err, comments) {
+                    if (err) {
+                        console.error(err)
+                        res.send(err)
+                    } else {
+                        // console.log(comments)
+                        commentsFeed = comments.reduce(function (comments, comment) {
+                            let commentObj = comment.toJSON()
+                            let likes = commentObj.likes
+                            let canLike = user ? true : false
+                            let uid = user ? user.id : ''
+                            let hasLiked = comment.likes.indexOf(uid) > -1 ? true : false
+                            commentObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
+
+                            let commentsObj = commentObj.comments
+                            delete commentObj.comments
+                            let canComment = user ? true : false
+                            commentObj.replies = { data: commentsObj, summary: { count: commentsObj.length, can_comment: canComment } }
+
+                            comments[comment._id] = commentObj
+                            if (userids.indexOf(comment.userId.toString()) === -1) {
+                                userids.push(comment.userId.toString())
+                                users.push(comment.userId)
+                            }
+                            return comments;
+                        }, {});
+                        models.User.findUsers(users, function (err, users) {
+                            if (err) {
+                                console.error(err)
+                                res.send(err)
+                            } else {
+                                var userFeed = users.reduce(function (users, user) {
+                                    users[user._id] = user
+                                    return users
+                                }, {});
+
+                                let feedResponse = { data: {'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
+                                res.setHeader('Access-Control-Allow-Origin', '*');
+                                res.json(feedResponse);
+                            }
+                        });
+                    }
+                });
+                // res.status(200).json({ post: postObj });
+            } else {
+                res.status(404).json({ postId: req.params.postI, messge: 'Not Found' });
+            }
+        }
+    })
+}
+
 // GET the details of post (by its id)
 // This will further accepts query parameters such as related/recommendations etc
-router.get("/:postId", function (req, res) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.status(200).json({ post: req.params.postId });
-});
+router.get('/:postId',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                getPost(req.params.postId, null, req, res)
+            } else {
+                getPost(req.params.postId, user, req, res)
+            }
+        })(req, res, next);
+    });
 
 // POST a new video
 router.post('/',
@@ -160,7 +249,7 @@ router.post('/',
                                 console.log(err)
                                 res.send(err)
                             } else {
-                                res.status(201).json({feedKey:date, post:post});
+                                res.status(201).json({ feedKey: date, post: post });
                             }
                         });
                     }
