@@ -33,6 +33,7 @@ function parseQuery(params, givenLimit) {
 
     let commentsSummary = params.comments_summary || 'true'
     let likesSummary = params.likes_summary || 'true'
+    let feedSummary = params.feed || 'true'
 
     return {
         limit: limit,
@@ -40,7 +41,8 @@ function parseQuery(params, givenLimit) {
         until: until,
         query: query,
         commentsSummary: commentsSummary == 'true',
-        likesSummary: likesSummary == 'true'
+        likesSummary: likesSummary == 'true', 
+        feedSummary: feedSummary == 'true'
     }
 }
 

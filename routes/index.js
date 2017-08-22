@@ -13,5 +13,7 @@ router.use("/api/v1/posts", posts);
 const comments = require('./comments');
 router.use("/api/v1/comments", comments);
 
-module.exports = router;
+const category = require('./category');
+router.use("/api/v1/category", category);
 
+module.exports = router;

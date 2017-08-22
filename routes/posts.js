@@ -83,8 +83,11 @@ function getFeedData(queryParams, user, req, res) {
                                         users[user._id] = user
                                         return users
                                     }, {});
-
-                                    let feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
+                                    let feedResponse = {}
+                                    if (queryParams.feedSummary)
+                                        feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
+                                    else
+                                        feedResponse = { data: { 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
                                     if (feeds.pagination)
                                         feedResponse.pagination = feeds.pagination
                                     // console.log(feedResponse)
@@ -182,7 +185,7 @@ function getPost(postId, user, req, res) {
                                     return users
                                 }, {});
 
-                                let feedResponse = { data: {'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
+                                let feedResponse = { data: { 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
                                 res.setHeader('Access-Control-Allow-Origin', '*');
                                 res.json(feedResponse);
                             }
