@@ -20,13 +20,13 @@ FeedSchema.statics.findFeeds = function (query, callback) {
     // For range query we don't need to form the feed
     // Do we need to pass the feed parameter?
     if (query.query == QUERY_BY_DATE_RANGE) {
-        console.log('range query')
+        // Range query, (E.g, give me feeds for range, from(since) -> to(until)
         return this.find({ "date": { "$gte": query.since, "$lte": query.until } }, function (err, data) {
             // No pagination
              callback(err, { data: data})
         }).sort({ 'date': -1 }).limit(query.limit);
     } else if (query.query == QUERY_BY_DATE_BACKWARD) {
-        console.log('backward query')
+        // Backward query, (E.g, give me 3 feeds, ends at until
         return this.find({ "date": { "$lte": query.until } }, function (err, data) {
             // We have next page here we have to use 'until' here
             let pagination = {}
@@ -40,7 +40,7 @@ FeedSchema.statics.findFeeds = function (query, callback) {
         
     } else if (query.query == QUERY_BY_DATE_FORWARD) {
         // Forward
-        console.log('forward query')
+        // Forward query, (E.g, give me 3 feeds, starts at since
         return this.find({ "date": { "$gte": query.since } }, function (err, data) {
             // We have prev page here
             let pagination = {}
@@ -52,6 +52,7 @@ FeedSchema.statics.findFeeds = function (query, callback) {
             callback(err, { data: data, pagination: pagination })
         }).sort({ 'date': -1 }).limit(query.limit + 1);
     } else {
+        // This is the 'default' query, (E.g, start at current date and get 3 feeds)
         return this.find({ "date": { "$lte": query.since } }, function (err, data) {
             // We have prev page here
             let pagination = {}
