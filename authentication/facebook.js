@@ -30,7 +30,6 @@ if (passportConfig.clientID) {
             }
         })
         .then(user => {
-            console.log(profile)
             let transformedUser = {
                 id: user.id,
                 profileId: user.profileId,
