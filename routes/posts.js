@@ -225,7 +225,7 @@ router.post('/',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 let postData = req.body
-                console.log(postData)
+                // console.log(postData)
                 let models = req.app.get('models')
                 let newPost = {
                     title: postData.title,
@@ -242,7 +242,7 @@ router.post('/',
                         let date = new Date(post.postedOn.getTime());
                         // We want date part only (set to its midnight)
                         date.setHours(12, 0, 0, 0);
-                        console.log(date)
+                        // console.log(date)
                         var query = { date: date },
                             update = { $push: { posts: post._id } },
                             options = { upsert: true, new: true };
@@ -252,7 +252,11 @@ router.post('/',
                                 console.log(err)
                                 res.send(err)
                             } else {
-                                res.status(201).json({ feedKey: date, post: post });
+                                // Add the necessary summary to comments and likes
+                                let postObj = post.toJSON()
+                                postObj.likes = { data: [], summary: { count: 0, can_like: true, has_liked: false } }                             
+                                postObj.comments = { data: [], summary: { count: 0, can_comment: true } }
+                                res.status(201).json({ feedKey: date, post: postObj });
                             }
                         });
                     }
