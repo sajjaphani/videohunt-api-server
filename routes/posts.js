@@ -254,7 +254,7 @@ router.post('/',
                             } else {
                                 // Add the necessary summary to comments and likes
                                 let postObj = post.toJSON()
-                                postObj.likes = { data: [], summary: { count: 0, can_like: true, has_liked: false } }                             
+                                postObj.likes = { data: [], summary: { count: 0, can_like: true, has_liked: false } }
                                 postObj.comments = { data: [], summary: { count: 0, can_comment: true } }
                                 res.status(201).json({ feedKey: date, post: postObj });
                             }
@@ -398,27 +398,14 @@ router.post('/:postId/like',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 // User loggedin 
+                let models = req.app.get('models')
                 let likeData = req.body
-                let models = req.app.get('models');
-                if (likeData.liked) {
-                    models.Post.findByIdAndUpdate(req.params.postId,
-                        { $addToSet: { likes: user.id } },
-                        { safe: true, new: true }, function (err, post) {
-                            if (err) {
-                                return next(err);
-                            }
-                            res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
-                        });
-                } else {
-                    models.Post.findByIdAndUpdate(req.params.postId,
-                        { $pull: { likes: user.id } },
-                        { safe: true, new: true }, function (err, post) {
-                            if (err) {
-                                return next(err);
-                            }
-                            res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
-                        });
-                }
+                models.Post.updateLike(req.params.postId, user.id, likeData.liked, function (err, post) {
+                    if (err)
+                        res.send(err)
+                    else
+                        res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
+                })
             }
         })(req, res, next);
     });

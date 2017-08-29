@@ -20,20 +20,31 @@ var PostSchema = new Schema({
 
 PostSchema.index({ url: 1 }, { unique: true });
 
+// Find posts given their ids
 PostSchema.statics.findPosts = function (posts, callback) {
-    this.find({
-                '_id': {
-                    $in: posts
-                }
-            }, function (err, posts) {
-              callback(err, posts)
-          })
+  this.find({
+    '_id': {
+      $in: posts
+    }
+  }, function (err, posts) {
+    callback(err, posts)
+  })
 }
 
+// Find a post given its id
 PostSchema.statics.findPostById = function (postId, callback) {
-    this.findById(postId, function (err, post) {
-            callback(err, post)
-        })
+  this.findById(postId, function (err, post) {
+    callback(err, post)
+  })
+}
+
+// Add or remove the user from like data (toggle like)
+PostSchema.statics.updateLike = function (postId, userId, liked, callback) {
+  let options = { safe: true, new: true }
+  let updateObj = liked ? { $addToSet: { likes: userId } } : { $pull: { likes: userId } }
+  this.findByIdAndUpdate(postId, updateObj, options, function (err, post) {
+    callback(err, post)
+  })
 }
 
 module.exports = PostSchema
