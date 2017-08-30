@@ -14,4 +14,13 @@ var CommentSchema = new Schema({
     }
 });
 
+// Add or remove the user from like data (toggle like)
+CommentSchema.statics.updateLike = function (commentId, userId, liked, callback) {
+    let options = { safe: true, new: true }
+    let updateObj = liked ? { $addToSet: { likes: userId } } : { $pull: { likes: userId } }
+    this.findByIdAndUpdate(commentId, updateObj, options, function (err, comment) {
+        callback(err, comment)
+    })
+}
+
 module.exports = CommentSchema

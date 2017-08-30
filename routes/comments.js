@@ -152,33 +152,14 @@ router.post('/:commentId/like',
             if (user === false) {
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
-                // User loggedin 
+                let models = req.app.get('models')
                 let likeData = req.body
-                let models = req.app.get('models');
-                if (likeData.liked) {
-                    models.Comment.findByIdAndUpdate(req.params.commentId,
-                        { $addToSet: { likes: user.id } },
-                        { safe: true, new: true }, function (err, result) {
-                            if (err) {
-                                console.log(err);
-                                return next(err);
-                            }
-                            console.log("RESULT: " + result);
-                            res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: result.id })
-                        });
-                } else {
-                    console.log('here... ' + user.id)
-                    models.Comment.findByIdAndUpdate(req.params.commentId,
-                        { $pull: { likes: user.id } },
-                        { safe: true, new: true }, function (err, result) {
-                            if (err) {
-                                console.log(err);
-                                return next(err);
-                            }
-                            console.log("RESULT: " + result);
-                            res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: result.id })
-                        });
-                }
+                models.Comment.updateLike(req.params.commentId, user.id, likeData.liked, function (err, comment) {
+                    if (err)
+                        res.send(err)
+                    else
+                        res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: comment._id })
+                })
             }
         })(req, res, next);
     });
