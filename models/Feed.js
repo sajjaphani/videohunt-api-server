@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
-const { QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('../models/constants')
+const { QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('./constants')
+const { getFeedPagination } = require('./PaginationHelper')
 
 var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
@@ -15,57 +16,47 @@ var FeedSchema = new Schema({
 
 const POST_GET_BASE = 'http://localhost:3000/api/v1/posts'
 
-FeedSchema.statics.findFeeds = function (query, callback) {
-    // TODO we further need to check the data size, data can be empty, we should supress pagination
-    // For range query we don't need to form the feed
-    // Do we need to pass the feed parameter?
+function getFeedQueryObject(query) {
     if (query.query == QUERY_BY_DATE_RANGE) {
         // Range query, (E.g, give me feeds for range, from(since) -> to(until)
-        return this.find({ "date": { "$gte": query.since, "$lte": query.until } }, function (err, data) {
-            // No pagination
-             callback(err, { data: data})
-        }).sort({ 'date': -1 }).limit(query.limit);
+        return { "date": { "$gte": query.since, "$lte": query.until } }
     } else if (query.query == QUERY_BY_DATE_BACKWARD) {
         // Backward query, (E.g, give me 3 feeds, ends at until
-        return this.find({ "date": { "$lte": query.until } }, function (err, data) {
-            // We have next page here we have to use 'until' here
-            let pagination = {}
-            pagination.previous = POST_GET_BASE + '?limit=' + query.limit + "&since=" + data[0].date.getTime()
-            if (data.length == query.limit + 1) {
-                let lastFeed = data.pop()
-                pagination.next = POST_GET_BASE + '?limit=' + query.limit + "&until=" + lastFeed.date.getTime()
-            }
-            callback(err, { data: data, pagination: pagination })
-        }).sort({ 'date': -1 }).limit(query.limit + 1);
-        
+        return { "date": { "$lte": query.until } }
     } else if (query.query == QUERY_BY_DATE_FORWARD) {
-        // Forward
         // Forward query, (E.g, give me 3 feeds, starts at since
-        return this.find({ "date": { "$gte": query.since } }, function (err, data) {
-            // We have prev page here
-            let pagination = {}
-            pagination.next = POST_GET_BASE + '?limit=' + query.limit + "&until=" + data[0].date.getTime()
-            if (data.length == query.limit + 1) {
-                let lastFeed = data.pop()
-                pagination.previous = POST_GET_BASE + '?limit=' + query.limit + "&since=" + lastFeed.date.getTime()
-            }
-            callback(err, { data: data, pagination: pagination })
-        }).sort({ 'date': -1 }).limit(query.limit + 1);
+        return { "date": { "$gte": query.since } }
     } else {
         // This is the 'default' query, (E.g, start at current date and get 3 feeds)
-        return this.find({ "date": { "$lte": query.since } }, function (err, data) {
-            // We have prev page here
-            let pagination = {}
-            if (data.length == query.limit + 1) {
-                let lastFeed = data.pop()
-                pagination.next = POST_GET_BASE + '?limit=' + query.limit + "&until=" + lastFeed.date.getTime()
-                callback(err, { data: data, pagination: pagination })
-            } else {
-                // No pagination, unlikely we hit this
-                callback(err, { data: data })
-            }
-        }).sort({ 'date': -1 }).limit(query.limit + 1);
+        return { "date": { "$lte": query.since } }
     }
+}
+
+function isEmptyObject(obj) {
+    return Object.keys(obj).length === 0 && obj.constructor === Object
+  }
+
+FeedSchema.statics.getFeedsPromise = function (query, user, models) {
+    // Do we need to pass the feed parameter?
+    let feedQueryObj = getFeedQueryObject(query)
+    return this.find(feedQueryObj).sort({ 'date': -1 }).limit(query.limit + 1).exec().then(function(feeds){
+        let postIds = []
+        let feedsObj = {}
+        let pagination = getFeedPagination(query, feeds)
+        feeds.forEach(function (feed) {
+            feedsObj[feed.date.toISOString()] = feed.posts
+            postIds = postIds.concat(feed.posts)
+        })
+        return models.Post.getPostsPromise(postIds, user, models).then(function(feed){
+            if (query.feedSummary)
+                feed.feed = feedsObj
+            let feedObj = { data: feed }
+            if(Object.keys(pagination).length !== 0) {
+                feedObj.pagination = pagination
+            }
+            return feedObj
+        })
+    })
 }
 
 module.exports = FeedSchema

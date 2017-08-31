@@ -23,4 +23,13 @@ CommentSchema.statics.updateLike = function (commentId, userId, liked, callback)
     })
 }
 
+CommentSchema.statics.getCommentsPromise = function (commentIds) {
+    let queryObj = {
+        '_id': {
+            $in: commentIds
+        }
+    }
+    return this.find(queryObj).exec()
+}
+
 module.exports = CommentSchema

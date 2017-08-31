@@ -9,12 +9,12 @@ router.get("/", function (req, res) {
 });
 
 router.get("/:category", function (req, res) {
-    let queryParams = parseCategoryQuery(req.query, 25)
-    console.log(queryParams)
     if(categories.indexOf(req.params.category) == -1) {
         return res.status(422).json({ category: req.params.category, message: 'Invalid Category' })
     }
-
+    
+    let queryParams = parseCategoryQuery(req.query, 25)
+    console.log(queryParams)
     let language = req.query.language || 'all'
     if(language != 'all' && languages.indexOf(req.query.language) == -1) {
         return res.status(422).json({ category: req.query.language, message: 'Invalid Language' })

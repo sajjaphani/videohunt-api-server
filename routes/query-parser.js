@@ -12,6 +12,7 @@ function parseFeedQuery(params, givenLimit) {
     return parsedObj
 }
 
+// Parse the given parameters for the category and languages based query
 function parseCategoryQuery(params, givenLimit) {
     let parsedObj = parseQuery(params, givenLimit)
 

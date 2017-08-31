@@ -1,107 +1,8 @@
 const router = require('express').Router()
 const { parseFeedQuery } = require('./query-parser')
 const passport = require('passport')
-// TODO we need to change this as we are supposed to use OAuth 2.0?
 // TODO We need to omit __v before sending the resutls
 // TODO can we extract the db access logic separately?
-function getFeedData(queryParams, user, req, res) {
-    let models = req.app.get('models')
-    models.Feed.findFeeds(queryParams, function (err, feeds) {
-        if (err)
-            res.send(err)
-        else {
-            let postIds = []
-            let feedsObj = {}
-            feeds.data.forEach(function (feed) {
-                feedsObj[feed.date.toISOString()] = feed.posts
-                postIds = postIds.concat(feed.posts)
-            });
-
-            models.Post.findPosts(postIds, function (err, posts) {
-                if (err)
-                    res.send(err)
-                else {
-                    var users = []
-                    var userids = []
-                    var commentIds = []
-                    var postFeed = posts.reduce(function (postsObj, post) {
-                        let postObj = post.toJSON()
-                        let likes = postObj.likes
-                        let canLike = user ? true : false
-                        let uid = user ? user.id : ''
-                        let hasLiked = post.likes.indexOf(uid) > -1 ? true : false
-                        postObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
-
-                        let comments = postObj.comments
-                        let canComment = user ? true : false
-                        postObj.comments = { data: comments, summary: { count: comments.length, can_comment: canComment } }
-                        postsObj[post._id] = postObj
-                        commentIds = commentIds.concat(post.comments)
-                        if (userids.indexOf(post.userId.toString()) === -1) {
-                            userids.push(post.userId.toString())
-                            users.push(post.userId)
-                        }
-                        return postsObj
-                    }, {});
-                    let commentsFeed = {}
-                    models.Comment.find({
-                        _id: {
-                            $in: commentIds
-                        }
-                    }, function (err, comments) {
-                        if (err) {
-                            console.error(err)
-                            res.send(err)
-                        } else {
-                            // console.log(comments)
-                            commentsFeed = comments.reduce(function (comments, comment) {
-                                let commentObj = comment.toJSON()
-                                let likes = commentObj.likes
-                                let canLike = user ? true : false
-                                let uid = user ? user.id : ''
-                                let hasLiked = comment.likes.indexOf(uid) > -1 ? true : false
-                                commentObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
-
-                                let commentsObj = commentObj.comments
-                                delete commentObj.comments
-                                let canComment = user ? true : false
-                                commentObj.replies = { data: commentsObj, summary: { count: commentsObj.length, can_comment: canComment } }
-
-                                comments[comment._id] = commentObj
-                                if (userids.indexOf(comment.userId.toString()) === -1) {
-                                    userids.push(comment.userId.toString())
-                                    users.push(comment.userId)
-                                }
-                                return comments;
-                            }, {});
-                            models.User.findUsers(users, function (err, users) {
-                                if (err) {
-                                    console.error(err)
-                                    res.send(err)
-                                } else {
-                                    var userFeed = users.reduce(function (users, user) {
-                                        users[user._id] = user
-                                        return users
-                                    }, {});
-                                    let feedResponse = {}
-                                    if (queryParams.feedSummary)
-                                        feedResponse = { data: { 'feed': feedsObj, 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
-                                    else
-                                        feedResponse = { data: { 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
-                                    if (feeds.pagination)
-                                        feedResponse.pagination = feeds.pagination
-                                    // console.log(feedResponse)
-                                    res.setHeader('Access-Control-Allow-Origin', '*');
-                                    res.json(feedResponse);
-                                }
-                            });
-                        }
-                    });
-                }
-            })
-        }
-    })
-}
 
 router.get('/',
     (req, res, next) => {
@@ -109,96 +10,14 @@ router.get('/',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            if (user === false) {
-                getFeedData(dbParams, null, req, res)
-            } else {
-                // User loggedin so send feed/comments with user context
-                getFeedData(dbParams, user, req, res)
-                //res.json({ msg: 'User logged in', user: user })
-            }
+            let models = req.app.get('models')
+            models.Feed.getFeedsPromise(dbParams, user, models).then(function (feed) {
+                res.status(200).json(feed);
+            }).then(undefined, function (err) {
+                res.send(err)
+            });
         })(req, res, next);
     });
-
-function getPost(postId, user, req, res) {
-    let models = req.app.get('models')
-    models.Post.findPostById(postId, function (err, post) {
-        if (err) {
-            res.send(err)
-        } else {
-            if (post) {
-                console.log(post)
-                var users = []
-                var userids = []
-                var commentIds = []
-                let postObj = post.toJSON()
-                let likes = postObj.likes
-                let canLike = user ? true : false
-                let uid = user ? user.id : ''
-                let hasLiked = post.likes.indexOf(uid) > -1 ? true : false
-                postObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
-                let postFeed = {}
-                postFeed[postObj.id] = postObj
-                let comments = postObj.comments
-                let canComment = user ? true : false
-                postObj.comments = { data: comments, summary: { count: comments.length, can_comment: canComment } }
-                userids.push(post.userId.toString())
-                users.push(post.userId)
-
-                let commentsFeed = {}
-                models.Comment.find({
-                    _id: {
-                        $in: comments
-                    }
-                }, function (err, comments) {
-                    if (err) {
-                        console.error(err)
-                        res.send(err)
-                    } else {
-                        // console.log(comments)
-                        commentsFeed = comments.reduce(function (comments, comment) {
-                            let commentObj = comment.toJSON()
-                            let likes = commentObj.likes
-                            let canLike = user ? true : false
-                            let uid = user ? user.id : ''
-                            let hasLiked = comment.likes.indexOf(uid) > -1 ? true : false
-                            commentObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
-
-                            let commentsObj = commentObj.comments
-                            delete commentObj.comments
-                            let canComment = user ? true : false
-                            commentObj.replies = { data: commentsObj, summary: { count: commentsObj.length, can_comment: canComment } }
-
-                            comments[comment._id] = commentObj
-                            if (userids.indexOf(comment.userId.toString()) === -1) {
-                                userids.push(comment.userId.toString())
-                                users.push(comment.userId)
-                            }
-                            return comments;
-                        }, {});
-                        models.User.findUsers(users, function (err, users) {
-                            if (err) {
-                                console.error(err)
-                                res.send(err)
-                            } else {
-                                var userFeed = users.reduce(function (users, user) {
-                                    users[user._id] = user
-                                    return users
-                                }, {});
-
-                                let feedResponse = { data: { 'posts': postFeed, 'users': userFeed, 'comments': commentsFeed } }
-                                res.setHeader('Access-Control-Allow-Origin', '*');
-                                res.json(feedResponse);
-                            }
-                        });
-                    }
-                });
-                // res.status(200).json({ post: postObj });
-            } else {
-                res.status(404).json({ postId: req.params.postI, messge: 'Not Found' });
-            }
-        }
-    })
-}
 
 // GET the details of post (by its id)
 // This will further accepts query parameters such as related/recommendations etc
@@ -207,11 +26,12 @@ router.get('/:postId',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            if (user === false) {
-                getPost(req.params.postId, null, req, res)
-            } else {
-                getPost(req.params.postId, user, req, res)
-            }
+            let models = req.app.get('models')
+            models.Post.getPostsPromise(req.params.postId, user, models).then(function (feed) {
+                res.status(200).json({ data: feed });
+            }).then(undefined, function (err) {
+                res.send(err)
+            });
         })(req, res, next);
     });
 
