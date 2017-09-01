@@ -126,4 +126,65 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
   })
 }
 
+// Get commnets for the given postId,
+// TODO, paginate later
+PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
+  return this.findById(postId).exec().then(function (post) {
+    return models.Comment.getCommentsPromise(post.comments).then(function (comments) {
+      var userIds = []
+      var userIdStrings = []
+      let commentsFeed = comments.reduce(function (comments, comment) {
+        let commentObj = comment.toJSON()
+        commentObj.likes = getLikeData(comment.likes, user)
+        commentObj.replies = getCommentData(comment.comments, user)
+        delete commentObj.comments
+
+        comments[comment._id] = commentObj
+        if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
+          userIdStrings.push(comment.userId.toString())
+          userIds.push(comment.userId)
+        }
+        return comments;
+      }, {});
+      return { users: userIds, comments: commentsFeed }
+    })
+  }).then(function (feed) {
+    return models.User.getUsersPromise(feed.users).then(function (users) {
+      var userFeed = users.reduce(function (users, user) {
+        users[user._id] = user
+        return users
+      }, {});
+      feed.users = userFeed
+      return feed
+    })
+  })
+}
+
+// Add a new video post
+// TODO we need to check whether there is any existing
+PostSchema.statics.addPostPromise = function (postData, user, models) {
+  let newPost = {
+    title: postData.title,
+    subtitle: postData.subtitle,
+    url: postData.url,
+    userId: user.id,
+  }
+  return new models.Post(newPost).save().then(function (post) {
+    let date = new Date(post.postedOn.getTime());
+    // We want date part only (set to its midnight)
+    date.setHours(12, 0, 0, 0);
+    var queryObj = { date: date },
+      updateObj = { $push: { posts: post._id } },
+      options = { upsert: true, new: true };
+    // Find the feed document and update
+    return models.Feed.findOneAndUpdate(queryObj, updateObj, options).exec().then(function (feedObj) {
+      let postObj = post.toJSON()
+      postObj.likes = getLikeData([], user)
+      postObj.comments = getCommentData([], user)
+      
+      return { feedKey: date, post: postObj };
+    })
+  })
+}
+
 module.exports = PostSchema
