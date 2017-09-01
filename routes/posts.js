@@ -86,6 +86,7 @@ router.post('/',
     });
 
 // GET the comments for the post (by its id)
+// Not in use for now
 router.get("/:postId/comments", function (req, res) {
     let dbParams = parseQuery(req.query, 5)
     console.log(dbParams)
@@ -146,63 +147,11 @@ router.post('/:postId/comments',
             if (user === false) {
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
-                // User loggedin so send feed/comments with user context
-                console.log('User logged in');
-                console.log(req.body)
                 let models = req.app.get('models');
-                models.Post.findById(req.params.postId, function (err, post) {
-                    if (err) {
-                        console.log(err) // send the error to the user
-                        res.send(err)
-                    } else {
-                        if (post) {
-                            let newComment = {
-                                content: req.body.content,
-                                userId: user.id
-                            }
-                            new models.Comment(newComment).save(function (err, comment) {
-                                if (err) {
-                                    console.log(err) // send the error to the user
-                                    res.send(err)
-                                } else {
-                                    console.log(comment)
-                                    models.Post.findByIdAndUpdate(post._id,
-                                        { $push: { comments: comment._id } },
-                                        { safe: true, upsert: true, new: true },
-                                        function (err, model) {
-                                            if (err) {
-                                                // We should rollback comment here
-                                                console.log(err)
-                                                res.send(err)
-                                            } else {
-                                                newComment.commentId = comment._id
-                                                newComment.postId = post._id
-                                                newComment.commentedOn = comment.commentedOn
-                                                newComment.likes = {
-                                                    data: [],
-                                                    summary: {
-                                                        count: 0,
-                                                        can_like: true,
-                                                        has_liked: true
-                                                    }
-                                                }
-                                                newComment.replies = {
-                                                    data: [],
-                                                    summary: {
-                                                        count: 0,
-                                                        can_comment: true
-                                                    }
-                                                }
-                                                res.status(201).json(newComment)
-                                            }
-                                        }
-                                    );
-                                }
-                            });
-                        } else {
-                            res.status(404).json({ postId: req.params.postId, messge: 'Not Found' });
-                        }
-                    }
+                models.Post.addCommentPromise(req.params.postId, req.body.content, user, models).then(function (response) {
+                    res.status(201).json(response)
+                }).then(undefined, function (err) {
+                    res.send(err)
                 });
             }
         })(req, res, next);

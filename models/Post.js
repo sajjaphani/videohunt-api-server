@@ -103,4 +103,27 @@ PostSchema.statics.updateLikePromise = function (postId, userId, liked) {
   })
 }
 
+// Add a new comment to an existing comment
+PostSchema.statics.addCommentPromise = function (postId, replyText, user, models) {
+  let newComment = {
+    content: replyText,
+    userId: user.id
+  }
+  return this.findById(postId).exec().then(function (post) {
+    newComment.postId = post.id
+    return new models.Comment(newComment).save()
+  }).then(function (comment) {
+    let updateObj = { $push: { comments: comment._id } }
+    let options = { safe: true, upsert: true, new: true }
+    return models.Post.findByIdAndUpdate(postId, updateObj, options).exec().then(function (updatedComment) {
+      newComment.commentId = comment.id
+      newComment.commentedOn = comment.commentedOn
+      newComment.likes = getLikeData([], user)
+      newComment.replies = getCommentData([], user)
+
+      return newComment
+    })
+  })
+}
+
 module.exports = PostSchema
