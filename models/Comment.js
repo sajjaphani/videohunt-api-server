@@ -37,8 +37,8 @@ CommentSchema.statics.getCommentsPromise = function (commentIds) {
 
 // Given a top level commentId, it fetches the replies to that comment
 CommentSchema.statics.getRepliesPromise = function (commentId, user, models) {
-    return this.findById(commentId).exec().then(function(comment) {
-        return models.Comment.getCommentsPromise(comment.comments).then(function(comments){
+    return this.findById(commentId).exec().then(function (comment) {
+        return models.Comment.getCommentsPromise(comment.comments).then(function (comments) {
             var commentsFeed = comments.reduce(function (comments, comment) {
                 let commentObj = comment.toJSON()
                 commentObj.likes = getLikeData(comment.likes, user)
@@ -48,6 +48,29 @@ CommentSchema.statics.getRepliesPromise = function (commentId, user, models) {
                 return comments;
             }, {});
             return commentsFeed;
+        })
+    })
+}
+
+// Add a reply to an existing comment
+CommentSchema.statics.addReplyPromise = function (commentId, replyText, user, models) {
+    let newComment = {
+        content: replyText,
+        userId: user.id
+    }
+    return this.findById(commentId).exec().then(function (comment) {
+        return new models.Comment(newComment).save()
+    }).then(function (comment) {
+        let updateObj = { $push: { comments: comment._id } }
+        let options = { safe: true, upsert: true, new: true }
+        return models.Comment.findByIdAndUpdate(commentId, updateObj, options).exec().then(function (updatedComment) {
+            newComment.commentId = comment._id
+            newComment.parentId = commentId
+            newComment.commentedOn = comment.commentedOn
+            newComment.likes = getLikeData([], user)
+            newComment.replies = getCommentData([], user)
+
+            return newComment
         })
     })
 }

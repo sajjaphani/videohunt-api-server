@@ -18,7 +18,7 @@ router.get('/:commentId/comments',
             if (err)
                 return next(err);
             let models = req.app.get('models')
-            models.Comment.getRepliesPromise(req.params.commentId, user, models).then(function(commentFeed){
+            models.Comment.getRepliesPromise(req.params.commentId, user, models).then(function (commentFeed) {
                 res.status(200).json(commentFeed)
             }).then(undefined, function (err) {
                 res.send(err)
@@ -37,62 +37,11 @@ router.post('/:commentId/comments',
             } else {
                 let models = req.app.get('models')
                 let commentData = req.body
-                console.log(commentData)
-                models.Comment.findById(req.params.commentId, function (err, comment) {
-                    if (err) {
-                        console.log(err) // send the error to the user
-                        res.send(err)
-                    } else {
-                        if (comment) {
-                            let newComment = {
-                                content: commentData.content,
-                                userId: user.id
-                            }
-                            new models.Comment(newComment).save(function (err, comment) {
-                                if (err) {
-                                    console.log(err) // send the error to the user
-                                    res.send(err)
-                                } else {
-                                    console.log(comment)
-                                    models.Comment.findByIdAndUpdate(req.params.commentId,
-                                        { $push: { comments: comment._id } },
-                                        { safe: true, upsert: true, new: true },
-                                        function (err, model) {
-                                            console.log('Model', model)
-                                            if (err) {
-                                                // We should rollback comment here
-                                                console.log(err)
-                                                res.send(err)
-                                            } else {
-                                                newComment.commentId = comment._id
-                                                newComment.parentId = req.params.commentId
-                                                newComment.commentedOn = comment.commentedOn
-                                                newComment.likes = {
-                                                    data: [],
-                                                    summary: {
-                                                        count: 0,
-                                                        can_like: true,
-                                                        has_liked: true
-                                                    }
-                                                }
-                                                newComment.replies = {
-                                                    data: [],
-                                                    summary: {
-                                                        count: 0,
-                                                        can_comment: true
-                                                    }
-                                                }
-                                                // console.log(newComment)
-                                                res.status(201).json(newComment)
-                                            }
-                                        }
-                                    );
-                                }
-                            });
-                        } else {
-                            res.status(404).json({ messge: 'Not Found' });
-                        }
-                    }
+                // console.log(commentData)
+                models.Comment.addReplyPromise(req.params.commentId, commentData.content, user, models).then(function (response) {
+                    res.status(201).json(response)
+                }).then(undefined, function (err) {
+                    res.send(err)
                 });
             }
         })(req, res, next);
