@@ -11,63 +11,18 @@ router.get("/:commentId", function (req, res) {
     res.status(200).json({ comment: req.params.commentId });
 });
 
-function fetchReplies(commentId, user, req, res) {
-    console.log('Comments for: ' + req.params.commentId)
-    let models = req.app.get('models');
-    models.Comment.findById(req.params.commentId, function (err, comment) {
-        if (err) {
-            console.log(err) // send the error to the user
-            res.send(err)
-        } else {
-            if (comment) {
-                console.log(comment)
-                let comments = comment.comments
-                models.Comment.find({
-                    _id: {
-                        $in: comments
-                    }
-                }, function (err, comments) {
-                    if (err) {
-                        console.error(err)
-                        res.send(err)
-                    } else {
-                        // console.log(comments)
-                        var result = comments.reduce(function (comments, comment) {
-                            let commentObj = comment.toJSON()
-                            let likes = commentObj.likes
-                            let canLike = user ? true : false
-                            let uid = user ? user.id : ''
-                            let hasLiked = comment.likes.indexOf(uid) > -1 ? true : false
-                            commentObj.likes = { data: likes, summary: { count: likes.length, can_like: canLike, has_liked: hasLiked } }
-
-                            let commentsObj = commentObj.comments
-                            delete commentObj.comments
-                            let canComment = user ? true : false
-                            commentObj.replies = { data: commentsObj, summary: { count: commentsObj.length, can_comment: canComment } }
-                            comments[comment._id] = commentObj
-                            return comments;
-                        }, {});
-                        res.status(200).json(result);
-                    }
-                });
-            } else {
-                res.status(404).json({ commentId: req.params.commentId, messge: 'Not Found' });
-            }
-        }
-    });
-}
-
 // GET the comments for a top level comments (by its id)
 router.get('/:commentId/comments',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            if (user === false) {
-                fetchReplies(req.params.commentId, null, req, res)
-            } else {
-                fetchReplies(req.params.commentId, user, req, res)
-            }
+            let models = req.app.get('models')
+            models.Comment.getRepliesPromise(req.params.commentId, user, models).then(function(commentFeed){
+                res.status(200).json(commentFeed)
+            }).then(undefined, function (err) {
+                res.send(err)
+            });
         })(req, res, next);
     });
 
