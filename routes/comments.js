@@ -154,12 +154,11 @@ router.post('/:commentId/like',
             } else {
                 let models = req.app.get('models')
                 let likeData = req.body
-                models.Comment.updateLike(req.params.commentId, user.id, likeData.liked, function (err, comment) {
-                    if (err)
-                        res.send(err)
-                    else
-                        res.status(200).json({ liked: likeData.liked, userId: user.id, commentId: comment._id })
-                })
+                models.Comment.updateLikePromise(req.params.commentId, user.id, likeData.liked).then(function (updatedStatus) {
+                    res.status(200).json(updatedStatus)
+                }).then(undefined, function (err) {
+                    res.send(err)
+                });
             }
         })(req, res, next);
     });

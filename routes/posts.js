@@ -220,12 +220,11 @@ router.post('/:postId/like',
                 // User loggedin 
                 let models = req.app.get('models')
                 let likeData = req.body
-                models.Post.updateLike(req.params.postId, user.id, likeData.liked, function (err, post) {
-                    if (err)
-                        res.send(err)
-                    else
-                        res.status(200).json({ liked: likeData.liked, userId: user.id, postId: post._id })
-                })
+                models.Post.updateLikePromise(req.params.postId, user.id, likeData.liked).then(function(updatedStatus) {
+                    res.status(200).json(updatedStatus)
+                }).then(undefined, function (err) {
+                    res.send(err)
+                });
             }
         })(req, res, next);
     });

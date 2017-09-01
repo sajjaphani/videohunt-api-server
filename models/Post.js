@@ -95,11 +95,11 @@ PostSchema.statics.findPostById = function (postId, callback) {
 }
 
 // Add or remove the user from like data (toggle like)
-PostSchema.statics.updateLike = function (postId, userId, liked, callback) {
+PostSchema.statics.updateLikePromise = function (postId, userId, liked) {
   let options = { safe: true, new: true }
   let updateObj = liked ? { $addToSet: { likes: userId } } : { $pull: { likes: userId } }
-  this.findByIdAndUpdate(postId, updateObj, options, function (err, post) {
-    callback(err, post)
+  return this.findByIdAndUpdate(postId, updateObj, options).exec().then(function (post) {
+    return { liked: liked, userId: userId, postId: post._id }
   })
 }
 
