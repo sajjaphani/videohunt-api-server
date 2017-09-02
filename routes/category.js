@@ -24,7 +24,7 @@ router.get('/:category',
             if (language != 'all' && languages.indexOf(req.query.language) == -1)
                 return res.status(422).json({ category: req.query.language, message: 'Invalid Language' })
 
-            let queryParams = parseCategoryQuery(req.query, 25)
+            let queryParams = parseCategoryQuery(req.query, 10)
             queryParams.category = req.params.category
             let models = req.app.get('models')
             models.Feed.getCategoryFeedPromise(queryParams, user, models).then(function (feed) {
