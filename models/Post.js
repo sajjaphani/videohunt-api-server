@@ -47,11 +47,6 @@ PostSchema.statics.getPostsPromise = function (postIds, user, models) {
     return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
       return feed
     })
-  }).then(function (feed) {
-    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
-      feed.users = userFeed
-      return feed
-    })
   })
 }
 
@@ -73,7 +68,6 @@ PostSchema.statics.getPostsWrapperPromise = function (posts, user, models) {
     return postsObj
   }, {});
   return models.Comment.getCommentsPromise(commentIds, user).then(function (feed) {
-    console.log('feed', feed)
     feed.users.forEach(function (userId) {
       if (userIdStrings.indexOf(userId.toString()) === -1) {
         userIdStrings.push(userId.toString())
@@ -81,6 +75,11 @@ PostSchema.statics.getPostsWrapperPromise = function (posts, user, models) {
       }
     })
     return { posts: postFeed, users: userIds, comments: feed.comments }
+  }).then(function (feed) {
+    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
+      feed.users = userFeed
+      return feed
+    })
   })
 }
 

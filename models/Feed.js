@@ -67,10 +67,9 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
     if (query.language != 'all')
         queryObj.language = query.language
     return models.Post.find(queryObj).exec().then(function (posts) {
-        models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
-           console.log(feed)
+        return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+           return feed
         })
-        return { category: query.category, language: query.language }
     })
 }
 
