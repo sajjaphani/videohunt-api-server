@@ -34,12 +34,12 @@ function getFeedQueryObject(query) {
 
 function isEmptyObject(obj) {
     return Object.keys(obj).length === 0 && obj.constructor === Object
-  }
+}
 
 FeedSchema.statics.getFeedsPromise = function (query, user, models) {
     // Do we need to pass the feed parameter?
     let feedQueryObj = getFeedQueryObject(query)
-    return this.find(feedQueryObj).sort({ 'date': -1 }).limit(query.limit + 1).exec().then(function(feeds){
+    return this.find(feedQueryObj).sort({ 'date': -1 }).limit(query.limit + 1).exec().then(function (feeds) {
         let postIds = []
         let feedsObj = {}
         let pagination = getFeedPagination(query, feeds)
@@ -47,15 +47,30 @@ FeedSchema.statics.getFeedsPromise = function (query, user, models) {
             feedsObj[feed.date.toISOString()] = feed.posts
             postIds = postIds.concat(feed.posts)
         })
-        return models.Post.getPostsPromise(postIds, user, models).then(function(feed){
+        return models.Post.getPostsPromise(postIds, user, models).then(function (feed) {
             if (query.feedSummary)
                 feed.feed = feedsObj
             let feedObj = { data: feed }
-            if(Object.keys(pagination).length !== 0) {
+            if (Object.keys(pagination).length !== 0) {
                 feedObj.pagination = pagination
             }
             return feedObj
         })
+    })
+}
+
+// Category based feed end point
+FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
+    let queryObj = {
+        category: query.category
+    }
+    if (query.language != 'all')
+        queryObj.language = query.language
+    return models.Post.find(queryObj).exec().then(function (posts) {
+        models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+           console.log(feed)
+        })
+        return { category: query.category, language: query.language }
     })
 }
 

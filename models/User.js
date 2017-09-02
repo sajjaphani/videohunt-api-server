@@ -32,33 +32,20 @@ UserSchema.statics.findUsers = function (userIds, callback) {
     })
 }
 
-UserSchema.statics.getUserFeed = function (userIds, callback) {
-    
+UserSchema.statics.getUserFeedPromise = function (userIds) {
     let queryObj = {
         '_id': {
             $in: userIds
         }
     }
-    this.find(queryObj).exec().then(function (users) {
-        console.log('kjfjd')
+    return this.find(queryObj).exec().then(function (users) {
         var userFeed = users.reduce(function (users, user) {
             users[user._id] = user
             return users
         }, {});
-        console.log(userFeed)
-        callback(userFeed)
-    }).then(undefined, function (err) {
-        callback(err)
-    });
-}
 
-UserSchema.statics.getUsersPromise = function (userIds) {
-    let queryObj = {
-        '_id': {
-            $in: userIds
-        }
-    }
-    return this.find(queryObj).exec()
+        return userFeed
+    })
 }
 
 module.exports = UserSchema

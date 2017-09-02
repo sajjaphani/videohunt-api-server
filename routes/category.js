@@ -1,4 +1,6 @@
 const router = require('express').Router()
+const passport = require('passport')
+
 const categories = require('../util/categories').getCaterogies()
 const languages = require('../util/languages').getLanguages()
 
@@ -8,24 +10,29 @@ router.get("/", function (req, res) {
     res.status(200).json({ categories: ['None'] })
 });
 
-router.get("/:category", function (req, res) {
-    if(categories.indexOf(req.params.category) == -1) {
-        return res.status(422).json({ category: req.params.category, message: 'Invalid Category' })
-    }
-    
-    let queryParams = parseCategoryQuery(req.query, 25)
-    console.log(queryParams)
-    let language = req.query.language || 'all'
-    if(language != 'all' && languages.indexOf(req.query.language) == -1) {
-        return res.status(422).json({ category: req.query.language, message: 'Invalid Language' })
-    }
-    console.log(categories)
-    console.log(languages)
+// Category based feed end point
+// TODO, invalid category/language error or empty result?
+router.get('/:category',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (categories.indexOf(req.params.category) == -1)
+                return res.status(422).json({ category: req.params.category, message: 'Invalid Category' })
 
-    // Validate category, invalid send 404
-    // Invalid language send empty result
-    res.header("Access-Control-Allow-Origin", "*")
-    res.status(200).json({ category: req.params.category, language:language })
-});
+            let language = req.query.language || 'all'
+            if (language != 'all' && languages.indexOf(req.query.language) == -1)
+                return res.status(422).json({ category: req.query.language, message: 'Invalid Language' })
+
+            let queryParams = parseCategoryQuery(req.query, 25)
+            queryParams.category = req.params.category
+            let models = req.app.get('models')
+            models.Feed.getCategoryFeedPromise(queryParams, user, models).then(function (feed) {
+                res.status(200).json(feed)
+            }).then(undefined, function (err) {
+                res.send(err)
+            });
+        })(req, res, next);
+    });
 
 module.exports = router

@@ -23,10 +23,10 @@ var PostSchema = new Schema({
 PostSchema.index({ url: 1 }, { unique: true });
 
 // Find posts given their ids
-PostSchema.statics.findPosts = function (posts, callback) {
+PostSchema.statics.findPosts = function (postIds, callback) {
   this.find({
     '_id': {
-      $in: posts
+      $in: postIds
     }
   }, function (err, posts) {
     callback(err, posts)
@@ -34,7 +34,7 @@ PostSchema.statics.findPosts = function (posts, callback) {
 }
 
 // This will handle computing posts feed for a single postId or an array of ids
-PostSchema.statics.getPostsPromise = function (postIds, user, models, callback) {
+PostSchema.statics.getPostsPromise = function (postIds, user, models) {
   if (!Array.isArray(postIds))
     postIds = [postIds]
   let queryObj = {
@@ -44,46 +44,43 @@ PostSchema.statics.getPostsPromise = function (postIds, user, models, callback) 
   }
   return this.find(queryObj).exec().then(function (posts) {
     // console.log(posts)
-    var userIds = []
-    var userIdStrings = []
-    var commentIds = []
-    var postFeed = posts.reduce(function (postsObj, post) {
-      let postObj = post.toJSON()
-      postObj.likes = getLikeData(post.likes, user)
-      postObj.comments = getCommentData(post.comments, user)
-      postsObj[post._id] = postObj
-      commentIds = commentIds.concat(post.comments)
-      if (userIdStrings.indexOf(post.userId.toString()) === -1) {
-        userIdStrings.push(post.userId.toString())
-        userIds.push(post.userId)
-      }
-      return postsObj
-    }, {});
-    return models.Comment.getCommentsPromise(commentIds).then(function (comments) {
-      let commentsFeed = comments.reduce(function (comments, comment) {
-        let commentObj = comment.toJSON()
-        commentObj.likes = getLikeData(comment.likes, user)
-        commentObj.replies = getCommentData(comment.comments, user)
-        delete commentObj.comments
-
-        comments[comment._id] = commentObj
-        if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
-          userIdStrings.push(comment.userId.toString())
-          userIds.push(comment.userId)
-        }
-        return comments;
-      }, {});
-      return { posts: postFeed, users: userIds, comments: commentsFeed }
+    return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+      return feed
     })
   }).then(function (feed) {
-    return models.User.getUsersPromise(feed.users).then(function (users) {
-      var userFeed = users.reduce(function (users, user) {
-        users[user._id] = user
-        return users
-      }, {});
+    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
       feed.users = userFeed
       return feed
     })
+  })
+}
+
+// Given array of post objects, it returns the wrapper promise
+PostSchema.statics.getPostsWrapperPromise = function (posts, user, models) {
+  var userIds = []
+  var userIdStrings = []
+  var commentIds = []
+  var postFeed = posts.reduce(function (postsObj, post) {
+    let postObj = post.toJSON()
+    postObj.likes = getLikeData(post.likes, user)
+    postObj.comments = getCommentData(post.comments, user)
+    postsObj[post._id] = postObj
+    commentIds = commentIds.concat(post.comments)
+    if (userIdStrings.indexOf(post.userId.toString()) === -1) {
+      userIdStrings.push(post.userId.toString())
+      userIds.push(post.userId)
+    }
+    return postsObj
+  }, {});
+  return models.Comment.getCommentsPromise(commentIds, user).then(function (feed) {
+    console.log('feed', feed)
+    feed.users.forEach(function (userId) {
+      if (userIdStrings.indexOf(userId.toString()) === -1) {
+        userIdStrings.push(userId.toString())
+        userIds.push(userId)
+      }
+    })
+    return { posts: postFeed, users: userIds, comments: feed.comments }
   })
 }
 
@@ -130,30 +127,12 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
 // TODO, paginate later
 PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
   return this.findById(postId).exec().then(function (post) {
-    return models.Comment.getCommentsPromise(post.comments).then(function (comments) {
-      var userIds = []
-      var userIdStrings = []
-      let commentsFeed = comments.reduce(function (comments, comment) {
-        let commentObj = comment.toJSON()
-        commentObj.likes = getLikeData(comment.likes, user)
-        commentObj.replies = getCommentData(comment.comments, user)
-        delete commentObj.comments
+    return models.Comment.getCommentsPromise(post.comments, user).then(function (feed) {
 
-        comments[comment._id] = commentObj
-        if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
-          userIdStrings.push(comment.userId.toString())
-          userIds.push(comment.userId)
-        }
-        return comments;
-      }, {});
-      return { users: userIds, comments: commentsFeed }
+      return feed
     })
   }).then(function (feed) {
-    return models.User.getUsersPromise(feed.users).then(function (users) {
-      var userFeed = users.reduce(function (users, user) {
-        users[user._id] = user
-        return users
-      }, {});
+    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
       feed.users = userFeed
       return feed
     })
@@ -167,6 +146,8 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
     title: postData.title,
     subtitle: postData.subtitle,
     url: postData.url,
+    category: postData.category,
+    language: postData.language,
     userId: user.id,
   }
   return new models.Post(newPost).save().then(function (post) {
@@ -181,7 +162,7 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
       let postObj = post.toJSON()
       postObj.likes = getLikeData([], user)
       postObj.comments = getCommentData([], user)
-      
+
       return { feedKey: date, post: postObj };
     })
   })

@@ -26,28 +26,37 @@ CommentSchema.statics.updateLikePromise = function (commentId, userId, liked, ca
 }
 
 // Given commentIds get the comments data
-CommentSchema.statics.getCommentsPromise = function (commentIds) {
+CommentSchema.statics.getCommentsPromise = function (commentIds, user) {
     let queryObj = {
         '_id': {
             $in: commentIds
         }
     }
-    return this.find(queryObj).exec()
+    return this.find(queryObj).exec().then(function(comments) {
+        var userIds = []
+        var userIdStrings = []
+        let commentsFeed = comments.reduce(function (comments, comment) {
+            let commentObj = comment.toJSON()
+            commentObj.likes = getLikeData(comment.likes, user)
+            commentObj.replies = getCommentData(comment.comments, user)
+            delete commentObj.comments
+    
+            comments[comment._id] = commentObj
+            if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
+              userIdStrings.push(comment.userId.toString())
+              userIds.push(comment.userId)
+            }
+            return comments;
+          }, {});
+          return { comments: commentsFeed, users: userIds }
+    })
 }
 
 // Given a top level commentId, it fetches the replies to that comment
 CommentSchema.statics.getRepliesPromise = function (commentId, user, models) {
     return this.findById(commentId).exec().then(function (comment) {
-        return models.Comment.getCommentsPromise(comment.comments).then(function (comments) {
-            var commentsFeed = comments.reduce(function (comments, comment) {
-                let commentObj = comment.toJSON()
-                commentObj.likes = getLikeData(comment.likes, user)
-                commentObj.replies = getCommentData(comment.comments, user)
-                delete commentObj.comments
-                comments[comment._id] = commentObj
-                return comments;
-            }, {});
-            return commentsFeed;
+        return models.Comment.getCommentsPromise(comment.comments, user).then(function (feed) {
+            return feed.comments;
         })
     })
 }
