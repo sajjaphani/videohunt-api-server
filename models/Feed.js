@@ -69,10 +69,11 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
     return models.Post.find(feedQueryObj).sort({ 'postedOn': -1 }).limit(query.limit + 1).exec().then(function (posts) {
         let pagination = getFeedPagination(query, posts, 'postedOn', 'category/' + query.category)
         return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+            let categoryFeed = {data: feed}
             if (Object.keys(pagination).length !== 0) {
-                feed.pagination = pagination
+                categoryFeed.pagination = pagination
             }
-           return feed
+           return categoryFeed
         })
     })
 }
