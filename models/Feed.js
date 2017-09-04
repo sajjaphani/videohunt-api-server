@@ -18,7 +18,7 @@ const POST_GET_BASE = 'http://localhost:3000/api/v1/posts'
 
 function getFeedQueryObject(query, fieldName) {
     let queryObj = {}
-    
+
     if (query.query == QUERY_BY_DATE_RANGE) {
         // Range query, (E.g, give me feeds for range, from(since) -> to(until)
         queryObj[fieldName] = { "$gte": query.since, "$lte": query.until }
@@ -67,13 +67,19 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
     if (query.language != 'all')
         feedQueryObj.language = query.language
     return models.Post.find(feedQueryObj).sort({ 'postedOn': -1 }).limit(query.limit + 1).exec().then(function (posts) {
+        let postIds = []
+        posts.forEach(function (post) {
+            postIds.push(post.id)
+        })
+        // console.log(postIds)
         let pagination = getFeedPagination(query, posts, 'postedOn', 'category/' + query.category)
         return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
-            let categoryFeed = {data: feed}
+            feed.feed = { postIds: postIds }
+            let categoryFeed = { data: feed }
             if (Object.keys(pagination).length !== 0) {
                 categoryFeed.pagination = pagination
             }
-           return categoryFeed
+            return categoryFeed
         })
     })
 }
