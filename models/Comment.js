@@ -32,12 +32,9 @@ CommentSchema.statics.updateLikePromise = function (commentId, userId, liked, ca
 // Given commentIds get the comments data
 CommentSchema.statics.getCommentsPromise = function (commentIds, query, user, models) {
     let feedQueryObj = getFeedQueryObject(query, 'commentedOn')
-    let queryObj = {
-        '_id': {
-            $in: commentIds
-        }
+    feedQueryObj['_id'] = {
+        $in: commentIds
     }
-    feedQueryObj['_id'] = commentIds
     return this.find(feedQueryObj).sort({ 'commentedOn': -1 }).limit(query.limit + 1).exec().then(function (comments) {
         let pagination = getFeedPagination(query, comments, 'commentedOn', query.pagingRelativePath)
         var userIds = []
