@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 
 const { getLikeData, getCommentData } = require('./ModelHelper')
+const { API_BASE } = require('../routes/constants')
 
 var Schema = mongoose.Schema,
   ObjectId = Schema.ObjectId;
@@ -34,7 +35,7 @@ PostSchema.statics.findPosts = function (postIds, callback) {
 }
 
 // This will handle computing posts feed for a single postId or an array of ids
-PostSchema.statics.getPostsPromise = function (postIds, user, models) {
+PostSchema.statics.getPostsPromise = function (postIds, query, user, models) {
   if (!Array.isArray(postIds))
     postIds = [postIds]
   let queryObj = {
@@ -43,22 +44,22 @@ PostSchema.statics.getPostsPromise = function (postIds, user, models) {
     }
   }
   return this.find(queryObj).exec().then(function (posts) {
-    // console.log(posts)
-    return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+    return models.Post.getPostsWrapperPromise(posts, query, user, models).then(function (feed) {
       return feed
     })
   })
 }
 
 // Given array of post objects, it returns the wrapper promise
-PostSchema.statics.getPostsWrapperPromise = function (posts, user, models) {
+PostSchema.statics.getPostsWrapperPromise = function (posts, query, user, models) {
   var userIds = []
   var userIdStrings = []
   var commentIds = []
   var postFeed = posts.reduce(function (postsObj, post) {
     let postObj = post.toJSON()
     postObj.likes = getLikeData(post.likes, user)
-    postObj.comments = getCommentData(post.comments, user)
+    let commentPage = API_BASE + 'posts/' + post.id + '/comments'
+    postObj.comments = getCommentData(post.comments, user, commentPage)
     postsObj[post._id] = postObj
     commentIds = commentIds.concat(post.comments)
     if (userIdStrings.indexOf(post.userId.toString()) === -1) {
@@ -67,19 +68,8 @@ PostSchema.statics.getPostsWrapperPromise = function (posts, user, models) {
     }
     return postsObj
   }, {});
-  return models.Comment.getCommentsPromise(commentIds, user).then(function (feed) {
-    feed.users.forEach(function (userId) {
-      if (userIdStrings.indexOf(userId.toString()) === -1) {
-        userIdStrings.push(userId.toString())
-        userIds.push(userId)
-      }
-    })
-    return { posts: postFeed, users: userIds, comments: feed.comments }
-  }).then(function (feed) {
-    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
-      feed.users = userFeed
-      return feed
-    })
+  return models.User.getUserFeedPromise(userIds).then(function (userFeed) {
+    return { posts: postFeed, users: userFeed }
   })
 }
 
@@ -115,7 +105,7 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
       newComment.commentId = comment.id
       newComment.commentedOn = comment.commentedOn
       newComment.likes = getLikeData([], user)
-      newComment.replies = getCommentData([], user)
+      newComment.replies = getCommentData([], user, null)
 
       return newComment
     })
@@ -123,16 +113,10 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
 }
 
 // Get commnets for the given postId,
-// TODO, paginate later
 PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
   return this.findById(postId).exec().then(function (post) {
-    return models.Comment.getCommentsPromise(post.comments, user).then(function (feed) {
+    return models.Comment.getCommentsPromise(post.comments, query, user, models).then(function (feed) {
 
-      return feed
-    })
-  }).then(function (feed) {
-    return models.User.getUserFeedPromise(feed.users).then(function (userFeed) {
-      feed.users = userFeed
       return feed
     })
   })
@@ -160,7 +144,7 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
     return models.Feed.findOneAndUpdate(queryObj, updateObj, options).exec().then(function (feedObj) {
       let postObj = post.toJSON()
       postObj.likes = getLikeData([], user)
-      postObj.comments = getCommentData([], user)
+      postObj.comments = getCommentData([], user, null)
 
       return { feedKey: date, post: postObj };
     })

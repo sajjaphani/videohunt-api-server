@@ -1,6 +1,9 @@
 const router = require('express').Router()
 const passport = require('passport')
 
+const { parseQuery } = require('./query-parser')
+const { API_BASE } = require('./constants')
+
 // TODO we should be getting post id as well to validate the post also?
 router.get("/", function (req, res) {
     res.status(200).json({ comments: ['None'] });;
@@ -14,11 +17,14 @@ router.get("/:commentId", function (req, res) {
 // GET the comments for a top level comments (by its id)
 router.get('/:commentId/comments',
     (req, res, next) => {
+        let queryParams = parseQuery(req.query, 5)
+        // Comment replies feed can have pagination
+        queryParams.pagingRelativePath = API_BASE + 'comments/' + req.params.commentId + '/comments'
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
             let models = req.app.get('models')
-            models.Comment.getRepliesPromise(req.params.commentId, user, models).then(function (commentFeed) {
+            models.Comment.getRepliesPromise(req.params.commentId, queryParams, user, models).then(function (commentFeed) {
                 res.status(200).json(commentFeed)
             }).then(undefined, function (err) {
                 res.send(err)

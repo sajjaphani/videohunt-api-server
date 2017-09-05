@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 const { QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('./constants')
 const { getFeedPagination } = require('./PaginationHelper')
+const { getFeedQueryObject } = require('./QueryObjectHelper')
 
 var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
@@ -14,41 +15,18 @@ var FeedSchema = new Schema({
     'posts': [ObjectId] // posts on a date
 });
 
-const POST_GET_BASE = 'http://localhost:3000/api/v1/posts'
-
-function getFeedQueryObject(query, fieldName) {
-    let queryObj = {}
-
-    if (query.query == QUERY_BY_DATE_RANGE) {
-        // Range query, (E.g, give me feeds for range, from(since) -> to(until)
-        queryObj[fieldName] = { "$gte": query.since, "$lte": query.until }
-    } else if (query.query == QUERY_BY_DATE_BACKWARD) {
-        // Backward query, (E.g, give me 3 feeds, ends at until
-        queryObj[fieldName] = { "$lte": query.until }
-    } else if (query.query == QUERY_BY_DATE_FORWARD) {
-        // Forward query, (E.g, give me 3 feeds, starts at since
-        queryObj[fieldName] = { "$gte": query.since }
-    } else {
-        // This is the 'default' query, (E.g, start at current date and get 3 feeds)
-        queryObj[fieldName] = { "$lte": query.since }
-    }
-
-    return queryObj
-}
-
 FeedSchema.statics.getFeedsPromise = function (query, user, models) {
     // Do we need to pass the feed parameter?
     let feedQueryObj = getFeedQueryObject(query, 'date')
-    console.log(feedQueryObj)
     return this.find(feedQueryObj).sort({ 'date': -1 }).limit(query.limit + 1).exec().then(function (feeds) {
         let postIds = []
         let feedsObj = {}
-        let pagination = getFeedPagination(query, feeds, 'date', 'posts')
+        let pagination = getFeedPagination(query, feeds, 'date', query.pagingRelativePath)
         feeds.forEach(function (feed) {
             feedsObj[feed.date.toISOString()] = feed.posts
             postIds = postIds.concat(feed.posts)
         })
-        return models.Post.getPostsPromise(postIds, user, models).then(function (feed) {
+        return models.Post.getPostsPromise(postIds, query, user, models).then(function (feed) {
             if (query.feedSummary)
                 feed.feed = feedsObj
             let feedObj = { data: feed }
@@ -71,9 +49,8 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
         posts.forEach(function (post) {
             postIds.push(post.id)
         })
-        // console.log(postIds)
-        let pagination = getFeedPagination(query, posts, 'postedOn', 'category/' + query.category)
-        return models.Post.getPostsWrapperPromise(posts, user, models).then(function (feed) {
+        let pagination = getFeedPagination(query, posts, 'postedOn', query.pagingRelativePath)
+        return models.Post.getPostsWrapperPromise(posts, query, user, models).then(function (feed) {
             feed.feed = { postIds: postIds }
             let categoryFeed = { data: feed }
             if (Object.keys(pagination).length !== 0) {

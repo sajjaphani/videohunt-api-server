@@ -6,6 +6,8 @@ const languages = require('../util/languages').getLanguages()
 
 const { parseCategoryQuery } = require('./query-parser')
 
+const { API_BASE } = require('./constants')
+
 router.get("/", function (req, res) {
     res.status(200).json({ categories: ['None'] })
 });
@@ -26,6 +28,8 @@ router.get('/:category',
 
             let queryParams = parseCategoryQuery(req.query, 10)
             queryParams.category = req.params.category
+            // Category Posts feed can have pagination
+            queryParams.pagingRelativePath = API_BASE + 'category/' + req.params.category
             let models = req.app.get('models')
             models.Feed.getCategoryFeedPromise(queryParams, user, models).then(function (feed) {
                 res.status(200).json(feed)

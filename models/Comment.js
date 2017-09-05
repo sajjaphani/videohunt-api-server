@@ -1,6 +1,10 @@
 var mongoose = require('mongoose');
 
 const { getLikeData, getCommentData } = require('./ModelHelper')
+const { getFeedQueryObject } = require('./QueryObjectHelper')
+const { getFeedPagination } = require('./PaginationHelper')
+
+const { API_BASE } = require('../routes/constants')
 
 var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
@@ -26,37 +30,50 @@ CommentSchema.statics.updateLikePromise = function (commentId, userId, liked, ca
 }
 
 // Given commentIds get the comments data
-CommentSchema.statics.getCommentsPromise = function (commentIds, user) {
+CommentSchema.statics.getCommentsPromise = function (commentIds, query, user, models) {
+    let feedQueryObj = getFeedQueryObject(query, 'commentedOn')
     let queryObj = {
         '_id': {
             $in: commentIds
         }
     }
-    return this.find(queryObj).exec().then(function(comments) {
+    feedQueryObj['_id'] = commentIds
+    return this.find(feedQueryObj).sort({ 'commentedOn': -1 }).limit(query.limit + 1).exec().then(function (comments) {
+        let pagination = getFeedPagination(query, comments, 'commentedOn', query.pagingRelativePath)
         var userIds = []
         var userIdStrings = []
         let commentsFeed = comments.reduce(function (comments, comment) {
             let commentObj = comment.toJSON()
             commentObj.likes = getLikeData(comment.likes, user)
-            commentObj.replies = getCommentData(comment.comments, user)
+            let commentPage = API_BASE + 'comments/' + comment.id + '/comments'
+            commentObj.replies = getCommentData(comment.comments, user, commentPage)
             delete commentObj.comments
-    
+
             comments[comment._id] = commentObj
             if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
-              userIdStrings.push(comment.userId.toString())
-              userIds.push(comment.userId)
+                userIdStrings.push(comment.userId.toString())
+                userIds.push(comment.userId)
             }
             return comments;
-          }, {});
-          return { comments: commentsFeed, users: userIds }
+        }, {});
+        let feed = { data: { comments: commentsFeed, users: userIds } }
+        if (Object.keys(pagination).length !== 0)
+            feed.pagination = pagination
+
+        return feed
+    }).then(function (feed) {
+        return models.User.getUserFeedPromise(feed.data.users).then(function (userFeed) {
+            feed.data.users = userFeed
+            return feed
+        })
     })
 }
 
 // Given a top level commentId, it fetches the replies to that comment
-CommentSchema.statics.getRepliesPromise = function (commentId, user, models) {
+CommentSchema.statics.getRepliesPromise = function (commentId, query, user, models) {
     return this.findById(commentId).exec().then(function (comment) {
-        return models.Comment.getCommentsPromise(comment.comments, user).then(function (feed) {
-            return feed.comments;
+        return models.Comment.getCommentsPromise(comment.comments, query, user, models).then(function (feed) {
+            return feed;
         })
     })
 }
@@ -77,7 +94,7 @@ CommentSchema.statics.addReplyPromise = function (commentId, replyText, user, mo
             newComment.parentId = commentId
             newComment.commentedOn = comment.commentedOn
             newComment.likes = getLikeData([], user)
-            newComment.replies = getCommentData([], user)
+            newComment.replies = getCommentData([], user, null)
 
             return newComment
         })

@@ -1,17 +1,19 @@
 const router = require('express').Router()
-const { parseFeedQuery, parseQuery } = require('./query-parser')
 const passport = require('passport')
-// TODO We need to omit __v before sending the resutls
-// TODO can we extract the db access logic separately?
+
+const { parseFeedQuery, parseQuery } = require('./query-parser')
+const { API_BASE } = require('./constants')
 
 router.get('/',
     (req, res, next) => {
-        let dbParams = parseFeedQuery(req.query, 3)
+        let queryParams = parseFeedQuery(req.query, 3)
+        // Posts feed can have pagination
+        queryParams.pagingRelativePath = API_BASE + 'posts'
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
             let models = req.app.get('models')
-            models.Feed.getFeedsPromise(dbParams, user, models).then(function (feed) {
+            models.Feed.getFeedsPromise(queryParams, user, models).then(function (feed) {
                 res.status(200).json(feed);
             }).then(undefined, function (err) {
                 res.send(err)
@@ -23,11 +25,13 @@ router.get('/',
 // This will further accepts query parameters such as related/recommendations etc
 router.get('/:postId',
     (req, res, next) => {
+        // When we query single page, we can have pagination for comments
+        // queryParams.pagingRelativePath = 'posts' + req.params.postId + '/comments'
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
             let models = req.app.get('models')
-            models.Post.getPostsPromise(req.params.postId, user, models).then(function (feed) {
+            models.Post.getPostsPromise(req.params.postId, null, user, models).then(function (feed) {
                 res.status(200).json({ data: feed });
             }).then(undefined, function (err) {
                 res.send(err)
@@ -60,12 +64,14 @@ router.post('/',
 // Not in use for now
 router.get('/:postId/comments',
 (req, res, next) => {
-    let dbParams = parseQuery(req.query, 5)
+    let queryParams = parseQuery(req.query, 5)
+    // Post comments feed can have pagination
+    queryParams.pagingRelativePath = API_BASE + 'posts/' + req.params.postId + '/comments'
     passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
         if (err)
             return next(err);
         let models = req.app.get('models');
-        models.Post.getCommentsPromise(req.params.postId, dbParams, user, models).then(function (response) {
+        models.Post.getCommentsPromise(req.params.postId, queryParams, user, models).then(function (response) {
             res.status(200).json(response)
         }).then(undefined, function (err) {
             res.send(err)
