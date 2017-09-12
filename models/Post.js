@@ -7,9 +7,16 @@ var Schema = mongoose.Schema,
   ObjectId = Schema.ObjectId;
 
 var PostSchema = new Schema({
-  'title': String, // Title of the post
-  'subtitle': String, // Subtitle if any
   'url': { type: String, unique: true },  // URL of this video post
+  'title': String, // Title of the post
+  'author': String, // Subtitle if any
+  'author_url': String,
+  'provider_name': String,
+  'description': String,
+  'thumbnail_url': String,
+  'thumbnail_width': Number,
+  'thumbnail_height': Number,
+  'html': String, // Embedded content
   'comments': [ObjectId], // list of comments on this
   'likes': [ObjectId], // Users who liked this
   'userId': ObjectId, // User who posted this
@@ -126,12 +133,20 @@ PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
 // TODO we need to check whether there is any existing
 PostSchema.statics.addPostPromise = function (postData, user, models) {
   let newPost = {
-    title: postData.title,
-    subtitle: postData.subtitle,
     url: postData.url,
+    title: postData.title,
+    author: postData.author,
+    author_url: postData.author_url,
+    provider_name: postData.provider_name,
+    description: postData.description,
+    thumbnail_url: postData.thumbnail_url,
+    thumbnail_width: postData.thumbnail_width,
+    thumbnail_height: postData.thumbnail_height,
+    html: postData.html,
+    userId: postData.submittedBy,
     category: postData.category,
     language: postData.language,
-    userId: user.id,
+    postedOn: postData.submittedOn,
   }
   return new models.Post(newPost).save().then(function (post) {
     let date = new Date(post.postedOn.getTime());
@@ -148,6 +163,15 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
 
       return { feedKey: date, post: postObj };
     })
+  })
+}
+
+PostSchema.statics.findPostByUrl = function (url) {
+  let queryObj = {
+    'url': url
+  }
+  return this.findOne(queryObj).exec().then(function (video) {
+    return video
   })
 }
 

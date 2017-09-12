@@ -3,6 +3,7 @@ const passport = require('passport')
 
 const { parseFeedQuery, parseQuery } = require('./query-parser')
 const { API_BASE } = require('./constants')
+const { checkNewPost, saveNewPost } = require('../models/PostService')
 
 router.get('/',
     (req, res, next) => {
@@ -40,6 +41,27 @@ router.get('/:postId',
     });
 
 // POST a new video
+router.post('/status',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            if (user === false) {
+                res.status(401).json({ message: 'Unauthorized' });
+            } else {
+                let postData = req.body
+                let models = req.app.get('models')
+                checkNewPost(postData.url, user, models).then(function (data) {
+                    // console.log(data)
+                    res.json(data)
+                }).catch(function (err) {
+                    // console.log(err)
+                    res.json({ status: 'error', data: { error: err.error, message: err.message } })
+                })
+            }
+        })(req, res, next);
+    });
+
 router.post('/',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
@@ -49,12 +71,11 @@ router.post('/',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 let postData = req.body
-                // console.log(postData)
                 let models = req.app.get('models')
-                models.Post.addPostPromise(postData, user, models).then(function(response){
-                    res.status(200).json(response)
-                }).then(undefined, function (err) {
-                    res.send(err)
+                saveNewPost(postData, user, models).then(function (data) {
+                    res.json(data)
+                }).catch(function (err) {
+                    res.json({ status: 'error', data: err })
                 })
             }
         })(req, res, next);
@@ -63,21 +84,21 @@ router.post('/',
 // GET the comments for the post (by its id)
 // Not in use for now
 router.get('/:postId/comments',
-(req, res, next) => {
-    let queryParams = parseQuery(req.query, 5)
-    // Post comments feed can have pagination
-    queryParams.pagingRelativePath = API_BASE + 'posts/' + req.params.postId + '/comments'
-    passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
-        if (err)
-            return next(err);
-        let models = req.app.get('models');
-        models.Post.getCommentsPromise(req.params.postId, queryParams, user, models).then(function (response) {
-            res.status(200).json(response)
-        }).then(undefined, function (err) {
-            res.send(err)
-        });
-    })(req, res, next);
-});
+    (req, res, next) => {
+        let queryParams = parseQuery(req.query, 5)
+        // Post comments feed can have pagination
+        queryParams.pagingRelativePath = API_BASE + 'posts/' + req.params.postId + '/comments'
+        passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
+            if (err)
+                return next(err);
+            let models = req.app.get('models');
+            models.Post.getCommentsPromise(req.params.postId, queryParams, user, models).then(function (response) {
+                res.status(200).json(response)
+            }).then(undefined, function (err) {
+                res.send(err)
+            });
+        })(req, res, next);
+    });
 
 // POST a new comment on an existing post (by its id)
 router.post('/:postId/comments',
@@ -110,7 +131,7 @@ router.post('/:postId/like',
                 // User loggedin 
                 let models = req.app.get('models')
                 let likeData = req.body
-                models.Post.updateLikePromise(req.params.postId, user.id, likeData.liked).then(function(updatedStatus) {
+                models.Post.updateLikePromise(req.params.postId, user.id, likeData.liked).then(function (updatedStatus) {
                     res.status(200).json(updatedStatus)
                 }).then(undefined, function (err) {
                     res.send(err)
