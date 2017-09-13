@@ -17,12 +17,7 @@ var VideoEmbedSchema = new Schema({
   'thumbnail_url': String,
   'thumbnail_width': Number,
   'thumbnail_height': Number,
-  'html': String,
-  'submittedBy': ObjectId,
-  'submittedOn': {
-    type: Date,
-    default: Date.now
-  }
+  'html': String
 });
 
 VideoEmbedSchema.index({ url: 1 }, { unique: true });
@@ -39,7 +34,6 @@ VideoEmbedSchema.statics.findVideoByUrl = function (url, user) {
 
 // Add a new video post
 VideoEmbedSchema.statics.addVideoEmbedPromise = function (oembedData, user, models) {
-  oembedData.submittedBy = user.id
   // console.log(oembedData)
   return new models.VideoEmbed(oembedData).save().then(function (video) {
     return video

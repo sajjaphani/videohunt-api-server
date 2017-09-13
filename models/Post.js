@@ -143,10 +143,9 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
     thumbnail_width: postData.thumbnail_width,
     thumbnail_height: postData.thumbnail_height,
     html: postData.html,
-    userId: postData.submittedBy,
+    userId: user.id,
     category: postData.category,
     language: postData.language,
-    postedOn: postData.submittedOn,
   }
   return new models.Post(newPost).save().then(function (post) {
     let date = new Date(post.postedOn.getTime());
