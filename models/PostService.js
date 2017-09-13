@@ -32,6 +32,8 @@ function saveNewPost(postData, user, models) {
             if (!embedVideo)
                 reject({ status: 'error', data: { error: 'err.error', message: 'err.message' } })
             else {
+                embedVideo.title = postData.title,
+                embedVideo.description = postData.description,
                 embedVideo.category = postData.category,
                 embedVideo.language = postData.language,
                 models.Post.addPostPromise(embedVideo, user, models).then(function (response) {
