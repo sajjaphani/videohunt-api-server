@@ -5,10 +5,13 @@ var Schema = mongoose.Schema,
 
 var UserSchema = new Schema({
     'name': String, // name
-    'headline': String, // headline
+    'provider': String, // facebook, google or twitter
+    'profileId': {
+        type: String,
+        unique: true
+    }, // ID from auth provider
     'email': {
         type: String,
-        unique: true,
         lowercase: true
     },
     'memberSince': {
@@ -17,6 +20,32 @@ var UserSchema = new Schema({
     },
 });
 
-UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ profileId: 1 }, { unique: true });
+
+UserSchema.statics.findUsers = function (userIds, callback) {
+    this.find({
+        '_id': {
+            $in: userIds
+        }
+    }, function (err, users) {
+        callback(err, users)
+    })
+}
+
+UserSchema.statics.getUserFeedPromise = function (userIds) {
+    let queryObj = {
+        '_id': {
+            $in: userIds
+        }
+    }
+    return this.find(queryObj).exec().then(function (users) {
+        var userFeed = users.reduce(function (users, user) {
+            users[user._id] = user
+            return users
+        }, {});
+
+        return userFeed
+    })
+}
 
 module.exports = UserSchema

@@ -14,6 +14,13 @@ var database = function (connUrl) {
         console.info('Mongo db connected successfully');
     });
 
+    process.on('SIGINT', function () {
+        db.close(function () {
+            console.log('Mongoose connection closed as app terminates');
+            process.exit(0);
+        });
+    });
+
     return db;
 }
 
