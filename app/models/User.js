@@ -48,4 +48,4 @@ UserSchema.statics.getUserFeedPromise = function (userIds) {
     })
 }
 
-module.exports = UserSchema
+mongoose.model('User', UserSchema);

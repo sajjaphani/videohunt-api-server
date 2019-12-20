@@ -40,4 +40,4 @@ VideoEmbedSchema.statics.addVideoEmbedPromise = function (oembedData, user, mode
   })
 }
 
-module.exports = VideoEmbedSchema
+mongoose.model('VideoEmbed', VideoEmbedSchema);

@@ -1,4 +1,4 @@
-const { QUERY_BY_DATE_DEFAULT, QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('../models/constants')
+const { QUERY_BY_DATE_DEFAULT, QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('../models/helpers/constants')
 // This function customizes the parameters for feed query
 // Feed queries are based on date, not timestamp
 function parseFeedQuery(params, givenLimit) {

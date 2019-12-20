@@ -1,8 +1,8 @@
 var mongoose = require('mongoose');
 
-const { getLikeData, getCommentData } = require('./ModelHelper')
-const { getFeedQueryObject } = require('./QueryObjectHelper')
-const { getFeedPagination } = require('./PaginationHelper')
+const { getLikeData, getCommentData } = require('./helpers/ModelHelper')
+const { getFeedQueryObject } = require('./helpers/QueryObjectHelper')
+const { getFeedPagination } = require('./helpers/PaginationHelper')
 
 const { API_BASE } = require('../routes/constants')
 
@@ -59,7 +59,7 @@ CommentSchema.statics.getCommentsPromise = function (commentIds, query, user, mo
 
         return feed
     }).then(function (feed) {
-        return models.User.getUserFeedPromise(feed.data.users).then(function (userFeed) {
+        return User.getUserFeedPromise(feed.data.users).then(function (userFeed) {
             feed.data.users = userFeed
             return feed
         })
@@ -69,7 +69,7 @@ CommentSchema.statics.getCommentsPromise = function (commentIds, query, user, mo
 // Given a top level commentId, it fetches the replies to that comment
 CommentSchema.statics.getRepliesPromise = function (commentId, query, user, models) {
     return this.findById(commentId).exec().then(function (comment) {
-        return models.Comment.getCommentsPromise(comment.comments, query, user, models).then(function (feed) {
+        return this.model.getCommentsPromise(comment.comments, query, user, models).then(function (feed) {
             return feed;
         })
     })
@@ -82,11 +82,11 @@ CommentSchema.statics.addReplyPromise = function (commentId, replyText, user, mo
         userId: user.id
     }
     return this.findById(commentId).exec().then(function (comment) {
-        return new models.Comment(newComment).save()
+        return new this(newComment).save();
     }).then(function (comment) {
         let updateObj = { $push: { comments: comment._id } }
         let options = { safe: true, upsert: true, new: true }
-        return models.Comment.findByIdAndUpdate(commentId, updateObj, options).exec().then(function (updatedComment) {
+        return Comment.findByIdAndUpdate(commentId, updateObj, options).exec().then(function (updatedComment) {
             newComment.commentId = comment._id
             newComment.parentId = commentId
             newComment.commentedOn = comment.commentedOn
@@ -98,4 +98,4 @@ CommentSchema.statics.addReplyPromise = function (commentId, replyText, user, mo
     })
 }
 
-module.exports = CommentSchema
+mongoose.model('Comment', CommentSchema);

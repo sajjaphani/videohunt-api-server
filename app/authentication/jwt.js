@@ -1,7 +1,7 @@
 const passport = require('passport');
 const passportJwt = require('passport-jwt');
-const config = require('../config');
-const users = require('../services/users');
+
+const config = require('../../config');
 
 const jwtOptions = {
     jwtFromRequest: passportJwt.ExtractJwt.fromAuthHeader(),

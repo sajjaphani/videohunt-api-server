@@ -16,7 +16,7 @@ function environment() {
     /**
      * port to start node server, default 3000
      */
-    var NODE_SERVER_PORT = normalizeNumber(process.env.NODE_SERVER_PORT || '3000');
+    var NODE_SERVER_PORT = normalizeNumber(process.env.NODE_SERVER_PORT || '8811');
 
     /**
      * Specific location to store log files.

@@ -1,7 +1,9 @@
 var mongoose = require('mongoose');
-const { QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('./constants')
-const { getFeedPagination } = require('./PaginationHelper')
-const { getFeedQueryObject } = require('./QueryObjectHelper')
+
+var Post = mongoose.model('Post');
+
+const { getFeedPagination } = require('./helpers/PaginationHelper')
+const { getFeedQueryObject } = require('./helpers/QueryObjectHelper')
 
 var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
@@ -26,7 +28,7 @@ FeedSchema.statics.getFeedsPromise = function (query, user, models) {
             feedsObj[feed.date.toISOString()] = feed.posts
             postIds = postIds.concat(feed.posts)
         })
-        return models.Post.getPostsPromise(postIds, query, user, models).then(function (feed) {
+        return Post.getPostsPromise(postIds, query, user, models).then(function (feed) {
             if (query.feedSummary)
                 feed.feed = feedsObj
             let feedObj = { data: feed }
@@ -44,13 +46,13 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
     feedQueryObj.category = query.category
     if (query.language != 'all')
         feedQueryObj.language = query.language
-    return models.Post.find(feedQueryObj).sort({ 'postedOn': -1 }).limit(query.limit + 1).exec().then(function (posts) {
+    return Post.find(feedQueryObj).sort({ 'postedOn': -1 }).limit(query.limit + 1).exec().then(function (posts) {
         let postIds = []
         posts.forEach(function (post) {
             postIds.push(post.id)
         })
         let pagination = getFeedPagination(query, posts, 'postedOn', query.pagingRelativePath)
-        return models.Post.getPostsWrapperPromise(posts, query, user, models).then(function (feed) {
+        return Post.getPostsWrapperPromise(posts, query, user, models).then(function (feed) {
             feed.feed = { postIds: postIds }
             let categoryFeed = { data: feed }
             if (Object.keys(pagination).length !== 0) {
@@ -61,4 +63,4 @@ FeedSchema.statics.getCategoryFeedPromise = function (query, user, models) {
     })
 }
 
-module.exports = FeedSchema
+mongoose.model('Feed', FeedSchema);

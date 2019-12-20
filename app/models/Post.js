@@ -1,15 +1,19 @@
 var mongoose = require('mongoose');
 
-const { getLikeData, getCommentData } = require('./ModelHelper')
+var User = mongoose.model('User');
+var Comment = mongoose.model('Comment');
+var Feed = mongoose.model('Comment');
+
+const { getLikeData, getCommentData } = require('./helpers/ModelHelper')
 const { API_BASE } = require('../routes/constants')
 
 var Schema = mongoose.Schema,
   ObjectId = Schema.ObjectId;
 
 var PostSchema = new Schema({
-  'url': { type: String, unique: true },  // URL of this video post
-  'title': String, // Title of the post
-  'author': String, // Subtitle if any
+  'url': { type: String, unique: true },
+  'title': String,
+  'author': String,
   'author_url': String,
   'provider_name': String,
   'description': String,
@@ -25,7 +29,7 @@ var PostSchema = new Schema({
   'postedOn': {
     type: Date,
     default: Date.now
-  } // posted_time may be appropriate
+  }
 });
 
 PostSchema.index({ url: 1 }, { unique: true });
@@ -51,8 +55,24 @@ PostSchema.statics.getPostsPromise = function (postIds, query, user, models) {
     }
   }
   return this.find(queryObj).exec().then(function (posts) {
-    return models.Post.getPostsWrapperPromise(posts, query, user, models).then(function (feed) {
-      return feed
+    var userIds = []
+    var userIdStrings = []
+    var commentIds = []
+    var postFeed = posts.reduce(function (postsObj, post) {
+      let postObj = post.toJSON()
+      postObj.likes = getLikeData(post.likes, user)
+      let commentPage = API_BASE + 'posts/' + post.id + '/comments'
+      postObj.comments = getCommentData(post.comments, user, commentPage)
+      postsObj[post._id] = postObj
+      commentIds = commentIds.concat(post.comments)
+      if (userIdStrings.indexOf(post.userId.toString()) === -1) {
+        userIdStrings.push(post.userId.toString())
+        userIds.push(post.userId)
+      }
+      return postsObj
+    }, {});
+    return User.getUserFeedPromise(userIds).then(function (userFeed) {
+      return { posts: postFeed, users: userFeed }
     })
   })
 }
@@ -75,7 +95,7 @@ PostSchema.statics.getPostsWrapperPromise = function (posts, query, user, models
     }
     return postsObj
   }, {});
-  return models.User.getUserFeedPromise(userIds).then(function (userFeed) {
+  return User.getUserFeedPromise(userIds).then(function (userFeed) {
     return { posts: postFeed, users: userFeed }
   })
 }
@@ -104,11 +124,11 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
   }
   return this.findById(postId).exec().then(function (post) {
     newComment.postId = post.id
-    return new models.Comment(newComment).save()
+    return new Comment(newComment).save()
   }).then(function (comment) {
     let updateObj = { $push: { comments: comment._id } }
     let options = { safe: true, upsert: true, new: true }
-    return models.Post.findByIdAndUpdate(postId, updateObj, options).exec().then(function (updatedComment) {
+    return this.model.findByIdAndUpdate(postId, updateObj, options).exec().then(function (updatedComment) {
       newComment.commentId = comment.id
       newComment.commentedOn = comment.commentedOn
       newComment.likes = getLikeData([], user)
@@ -122,7 +142,7 @@ PostSchema.statics.addCommentPromise = function (postId, replyText, user, models
 // Get commnets for the given postId,
 PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
   return this.findById(postId).exec().then(function (post) {
-    return models.Comment.getCommentsPromise(post.comments, query, user, models).then(function (feed) {
+    return Comment.getCommentsPromise(post.comments, query, user, models).then(function (feed) {
 
       return feed
     })
@@ -147,7 +167,7 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
     category: postData.category,
     language: postData.language,
   }
-  return new models.Post(newPost).save().then(function (post) {
+  return new this(newPost).save().then(function (post) {
     let date = new Date(post.postedOn.getTime());
     // We want date part only (set to its midnight)
     date.setHours(12, 0, 0, 0);
@@ -155,7 +175,7 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
       updateObj = { $push: { posts: post._id } },
       options = { upsert: true, new: true };
     // Find the feed document and update
-    return models.Feed.findOneAndUpdate(queryObj, updateObj, options).exec().then(function (feedObj) {
+    return Feed.findOneAndUpdate(queryObj, updateObj, options).exec().then(function (feedObj) {
       let postObj = post.toJSON()
       postObj.likes = getLikeData([], user)
       postObj.comments = getCommentData([], user, null)
@@ -174,4 +194,4 @@ PostSchema.statics.findPostByUrl = function (url) {
   })
 }
 
-module.exports = PostSchema
+mongoose.model('Post', PostSchema);

@@ -3,7 +3,8 @@ const passport = require('passport')
 
 const { parseFeedQuery, parseQuery } = require('./query-parser')
 const { API_BASE } = require('./constants')
-const { checkNewPost, saveNewPost } = require('../models/PostService')
+const { checkNewPost, saveNewPost } = require('../models/helpers/PostService')
+const { getFeed } = require('../services/feed.service');
 
 router.get('/',
     (req, res, next) => {
@@ -13,11 +14,12 @@ router.get('/',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            let models = req.app.get('models')
-            models.Feed.getFeedsPromise(queryParams, user, models).then(function (feed) {
+            getFeed(queryParams, user).then(feed => {
+                console.log(feed);
                 res.status(200).json(feed);
-            }).then(undefined, function (err) {
-                res.send(err)
+            }).catch(err => {
+                console.log(err);
+                res.send(err);
             });
         })(req, res, next);
     });

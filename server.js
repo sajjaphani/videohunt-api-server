@@ -1,21 +1,25 @@
-var bodyParser = require('body-parser');
-var env = require('./util/env');
 var express = require('express');
+var session = require('express-session');
+var bodyParser = require('body-parser');
 const favicon = require('serve-favicon')
 const mustacheExpress = require('mustache-express');
 const passport = require('passport')
 var path = require('path')
-var routes = require("./routes");
-var session = require('express-session');
-const token = require('./util/token');
-require('./authentication/jwt');
-require('./authentication/google');
-require('./authentication/facebook');
 
-var MongoStore = require('connect-mongo')(session);
+const token = require('./app/util/token');
+
+require('./app/authentication/jwt');
+require('./app/authentication/google');
+require('./app/authentication/facebook');
+require('connect-mongo')(session);
+
+var env = require('./app/util/env');
 var connectionUrl = env.MONGO_CONNECTION_URL;
-var db = require("./db")(connectionUrl);
-var models = require("./models")(db);
+const { connect } = require("./app/db");
+connect(connectionUrl);
+
+var models = require("./app/models");
+var routes = require("./app/routes");
 
 // Initialize express
 var app = express();
@@ -36,6 +40,10 @@ app.use(bodyParser.json({
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
+app.use('*', (req, res, next) => {
+  next();
+});
+
 // Configure router
 app.use('/', routes);
 
@@ -45,7 +53,7 @@ app.use(passport.initialize());
 function generateUserToken(req, res) {
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
-  
+
   res.render('authenticated.html', {
     token: accessToken
   });
@@ -71,20 +79,20 @@ app.get('/api/v1/secure',
       if (user === false) {
         // User not loggedin, so send feed/comments without logged in user context
         console.log('User not logged in');
-        res.json({msg:'User not logged in'})
+        res.json({ msg: 'User not logged in' })
       } else {
         // User loggedin so send feed/comments with user context
         console.log('User logged in');
-        res.json({msg: 'User logged in', user: user})
+        res.json({ msg: 'User logged in', user: user })
       }
     })(req, res, next);
   });
 
-  app.get('/api/v1/secure2',
+app.get('/api/v1/secure2',
   passport.authenticate(['jwt'], { session: false }),
   (req, res, next) => {
-    
-     res.json({msg:'secure2'})
+
+    res.json({ msg: 'secure2' })
   });
 
 // catch 404 and forward to error handler
