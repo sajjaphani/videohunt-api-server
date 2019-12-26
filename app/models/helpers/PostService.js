@@ -3,6 +3,7 @@ var Promise = require('bluebird')
 const { getEmbedData } = require('./EmbedHelper')
 
 function checkNewPost(url, user, models) {
+    // console.log('Here');
     return new Promise(function (resolve, reject) {
         models.Post.findPostByUrl(url).then(function (post) {
             if (post)

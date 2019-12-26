@@ -1,5 +1,6 @@
 const passport = require('passport');
 const passportFacebook = require('passport-facebook');
+
 const config = require('../../config');
 const users = require('../services/users');
 
@@ -13,27 +14,28 @@ const passportConfig = {
 
 if (passportConfig.clientID) {
     passport.use(new passportFacebook.Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
-        let models = req.app.get('models')
-        users.getUserById(models.User, profile.id)
+        // console.log('Profile', JSON.stringify(profile));
+        users.getUserById(profile.id)
             .then(doc => {
                 if (doc) {
                     return doc;
                 } else {
+                    // console.log('Profile', profile);
                     const user = {
-                        name: profile.name.givenName,
-                        provider: 'facebook',
                         profileId: profile.id,
-                        email: profile.email
+                        name: profile.displayName,
+                        provider: profile.provider,
                     }
-                    return users.createUser(models.User, user);
+                    return users.createUser(user);
                 }
             })
             .then(user => {
+                // console.log('User', user);
                 let transformedUser = {
                     id: user.id,
                     profileId: user.profileId,
-                    name: profile.name.givenName,
-                    provider: 'facebook',
+                    name: profile.displayName,
+                    provider: user.provider,
                     picture: profile.photos ? profile.photos[0].value : '/images/logo.png'
                 };
                 done(null, transformedUser);
@@ -41,6 +43,5 @@ if (passportConfig.clientID) {
             .catch(err => {
                 done(err, false);
             });
-
     }));
 }

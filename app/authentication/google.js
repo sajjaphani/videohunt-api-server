@@ -16,7 +16,7 @@ if (passportConfig.clientID) {
     passport.use(new passportGoogle.OAuth2Strategy(passportConfig, function (request, accessToken, refreshToken, profile, done) {
         let models = request.app.get('models')
         users.getUserById(models.User, profile.id).then(doc => {
-            if(doc) {
+            if (doc) {
                 return doc;
             } else {
                 profile.displayName, 'google', profile.id
@@ -29,18 +29,18 @@ if (passportConfig.clientID) {
                 return users.createUser(models.User, user);
             }
         })
-        .then(user => {
-            let transformedUser = {
-                id: user.id,
-                profileId: user.profileId,
-                name: profile.name.givenName,//user.name,
-                provider: 'google',
-                picture: profile.photos ? profile.photos[0].value : '/images/logo.png'
-            };
-            done(null, transformedUser);
-        })
-        .catch(err => {
-            done(err, false);
-        });
+            .then(user => {
+                let transformedUser = {
+                    id: user.id,
+                    profileId: user.profileId,
+                    name: profile.name.givenName,//user.name,
+                    provider: 'google',
+                    picture: profile.photos ? profile.photos[0].value : '/images/logo.png'
+                };
+                done(null, transformedUser);
+            })
+            .catch(err => {
+                done(err, false);
+            });
     }));
 }

@@ -8,6 +8,9 @@ var path = require('path')
 
 const token = require('./app/util/token');
 
+var models = require("./app/models");
+var routes = require("./app/routes");
+
 require('./app/authentication/jwt');
 require('./app/authentication/google');
 require('./app/authentication/facebook');
@@ -17,9 +20,6 @@ var env = require('./app/util/env');
 var connectionUrl = env.MONGO_CONNECTION_URL;
 const { connect } = require("./app/db");
 connect(connectionUrl);
-
-var models = require("./app/models");
-var routes = require("./app/routes");
 
 // Initialize express
 var app = express();
@@ -50,13 +50,25 @@ app.use('/', routes);
 // Passport js
 app.use(passport.initialize());
 
+passport.serializeUser(function (user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function (user, done) {
+  done(null, user);
+});
+
 function generateUserToken(req, res) {
+  console.log('URL', req.url);
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
 
-  res.render('authenticated.html', {
-    token: accessToken
-  });
+  const baseHost = req.protocol + '://' + req.get('host');
+  const redirectUrl = `${baseHost}/login/success?session-token=${accessToken}`;
+  res.redirect(redirectUrl);
+  // res.render('authenticated.html', {
+  //   token: accessToken
+  // });
 }
 
 app.get('/api/v1/authentication/google',
@@ -68,7 +80,9 @@ app.get('/api/authentication/google/redirect',
 app.get('/api/v1/authentication/facebook',
   passport.authenticate('facebook', { session: false }));
 app.get('/api/v1/authentication/facebook/redirect',
-  passport.authenticate('facebook', { session: false }),
+  passport.authenticate('facebook', {
+    failureRedirect: '/login'
+  }),
   generateUserToken);
 
 app.get('/api/v1/secure',

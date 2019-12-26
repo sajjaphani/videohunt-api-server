@@ -1,14 +1,18 @@
+var mongoose = require('mongoose');
+
+var User = mongoose.model('User');
+
 // Returns a promise that will give a user record if exists
-function getUserById(User, profileId) {
-    return User.findOne({profileId: profileId});
+function getUserById(profileId) {
+    return User.findOne({ profileId: profileId });
 }
 
 // Create a new user
-function createUser(User, userObj) {
+function createUser(userObj) {
     return User.create(userObj);
 }
 
 module.exports = {
-    getUserById: getUserById,
-    createUser: createUser
+    getUserById,
+    createUser
 };
