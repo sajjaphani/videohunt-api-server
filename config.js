@@ -12,24 +12,24 @@ const config = convict({
         google: {
             clientId: {
                 doc: "The Client ID from Google to use for authentication",
-                default: "452703986085-o2b5i5k7he45051s55ut296bn1icu2m7.apps.googleusercontent.com",
+                default: "",
                 env: "GOOGLE_CLIENTID"
             },
             clientSecret: {
                 doc: "The Client Secret from Google to use for authentication",
-                default: "eEwUCUGQ5zcRRP8h68Wxjik9",
+                default: "",
                 env: "GOOGLE_CLIENTSECRET"
             }
         },
         facebook: {
             clientId: {
                 doc: "The Client ID from Facebook to use for authentication",
-                default: "619175788827743",
+                default: "",
                 env: "FACEBOOK_CLIENTID"
             },
             clientSecret: {
                 doc: "The Client Secret from Facebook to use for authentication",
-                default: "cff34a24936bf7eae7c17aca834f84a7",
+                default: "",
                 env: "FACEBOOK_CLIENTSECRET"
             }
         },
