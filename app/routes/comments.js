@@ -1,6 +1,8 @@
 const router = require('express').Router()
 const passport = require('passport')
 
+const { getReplies, updateLike, addReply } = require('../services/comment.service');
+
 const { parseQuery } = require('./query-parser')
 const { API_BASE } = require('./constants')
 
@@ -23,12 +25,12 @@ router.get('/:commentId/comments',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            let models = req.app.get('models')
-            models.Comment.getRepliesPromise(req.params.commentId, queryParams, user, models).then(function (commentFeed) {
-                res.status(200).json(commentFeed)
-            }).then(undefined, function (err) {
-                res.send(err)
-            });
+            getReplies(req.params.commentId, queryParams, user)
+                .then(function (commentFeed) {
+                    res.status(200).json(commentFeed)
+                }).then(undefined, function (err) {
+                    res.send(err)
+                });
         })(req, res, next);
     });
 
@@ -41,10 +43,9 @@ router.post('/:commentId/comments',
             if (user === false) {
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
-                let models = req.app.get('models')
                 let commentData = req.body
                 // console.log(commentData)
-                models.Comment.addReplyPromise(req.params.commentId, commentData.content, user, models).then(function (response) {
+                addReply(req.params.commentId, commentData.content, user).then(function (response) {
                     res.status(201).json(response)
                 }).then(undefined, function (err) {
                     res.send(err)
@@ -62,9 +63,8 @@ router.post('/:commentId/like',
             if (user === false) {
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
-                let models = req.app.get('models')
                 let likeData = req.body
-                models.Comment.updateLikePromise(req.params.commentId, user.id, likeData.liked).then(function (updatedStatus) {
+                updateLike(req.params.commentId, user.id, likeData.liked).then(function (updatedStatus) {
                     res.status(200).json(updatedStatus)
                 }).then(undefined, function (err) {
                     res.send(err)

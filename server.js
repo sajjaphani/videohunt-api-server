@@ -1,10 +1,7 @@
 var express = require('express');
 var session = require('express-session');
 var bodyParser = require('body-parser');
-const favicon = require('serve-favicon')
-const mustacheExpress = require('mustache-express');
 const passport = require('passport')
-var path = require('path')
 
 const token = require('./app/util/token');
 
@@ -23,11 +20,6 @@ connect(connectionUrl);
 
 // Initialize express
 var app = express();
-
-app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')))
-app.engine('html', mustacheExpress());
-app.set('view engine', 'mustache');
-app.set('views', __dirname + '/public');
 
 // Configure database
 app.set('models', models);
@@ -59,29 +51,25 @@ passport.deserializeUser(function (user, done) {
 });
 
 function generateUserToken(req, res) {
-  console.log('URL', req.url);
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
 
   const baseHost = req.protocol + '://' + req.get('host');
   const redirectUrl = `${baseHost}/login/success?session-token=${accessToken}`;
   res.redirect(redirectUrl);
-  // res.render('authenticated.html', {
-  //   token: accessToken
-  // });
 }
 
 app.get('/api/v1/authentication/google',
   passport.authenticate('google', { session: false, scope: ['openid', 'profile', 'email'] }))
 app.get('/api/authentication/google/redirect',
-  passport.authenticate('google', { session: false }),
+  passport.authenticate('google', { failureRedirect: '/' }),
   generateUserToken)
 
 app.get('/api/v1/authentication/facebook',
   passport.authenticate('facebook', { session: false }));
 app.get('/api/v1/authentication/facebook/redirect',
   passport.authenticate('facebook', {
-    failureRedirect: '/login'
+    failureRedirect: '/'
   }),
   generateUserToken);
 

@@ -17,7 +17,8 @@ var VideoEmbedSchema = new Schema({
   'thumbnail_url': String,
   'thumbnail_width': Number,
   'thumbnail_height': Number,
-  'html': String
+  'html': String,
+  'userId': ObjectId, // User who submitted this
 });
 
 VideoEmbedSchema.index({ url: 1 }, { unique: true });
@@ -29,15 +30,16 @@ VideoEmbedSchema.statics.findVideoByUrl = function (url, user) {
   }
   return this.findOne(queryObj).exec().then(function (video) {
     return video
-  })
+  });
 }
 
 // Add a new video post
-VideoEmbedSchema.statics.addVideoEmbedPromise = function (oembedData, user, models) {
+VideoEmbedSchema.statics.addVideoEmbedPromise = function (oembedData) {
   // console.log(oembedData)
-  return new models.VideoEmbed(oembedData).save().then(function (video) {
-    return video
-  })
+  return new this(oembedData).save()
+    .then(function (video) {
+      return video
+    });
 }
 
 mongoose.model('VideoEmbed', VideoEmbedSchema);

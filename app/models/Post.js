@@ -1,11 +1,6 @@
 var mongoose = require('mongoose');
 
-var User = mongoose.model('User');
-var Comment = mongoose.model('Comment');
-var Feed = mongoose.model('Comment');
-
-const { getLikeData, getCommentData } = require('./helpers/ModelHelper')
-const { API_BASE } = require('../routes/constants')
+mongoose.set('useFindAndModify', false);
 
 var Schema = mongoose.Schema,
   ObjectId = Schema.ObjectId;
@@ -34,19 +29,8 @@ var PostSchema = new Schema({
 
 PostSchema.index({ url: 1 }, { unique: true });
 
-// Find posts given their ids
-PostSchema.statics.findPosts = function (postIds, callback) {
-  this.find({
-    '_id': {
-      $in: postIds
-    }
-  }, function (err, posts) {
-    callback(err, posts)
-  })
-}
-
 // This will handle computing posts feed for a single postId or an array of ids
-PostSchema.statics.getPostsPromise = function (postIds, query, user, models) {
+PostSchema.statics.getPosts = function (postIds, query) {
   if (!Array.isArray(postIds))
     postIds = [postIds]
   let queryObj = {
@@ -54,104 +38,33 @@ PostSchema.statics.getPostsPromise = function (postIds, query, user, models) {
       $in: postIds
     }
   }
-  return this.find(queryObj).exec().then(function (posts) {
-    var userIds = []
-    var userIdStrings = []
-    var commentIds = []
-    var postFeed = posts.reduce(function (postsObj, post) {
-      let postObj = post.toJSON()
-      postObj.likes = getLikeData(post.likes, user)
-      let commentPage = API_BASE + 'posts/' + post.id + '/comments'
-      postObj.comments = getCommentData(post.comments, user, commentPage)
-      postsObj[post._id] = postObj
-      commentIds = commentIds.concat(post.comments)
-      if (userIdStrings.indexOf(post.userId.toString()) === -1) {
-        userIdStrings.push(post.userId.toString())
-        userIds.push(post.userId)
-      }
-      return postsObj
-    }, {});
-    return User.getUserFeedPromise(userIds).then(function (userFeed) {
-      return { posts: postFeed, users: userFeed }
-    })
-  })
-}
 
-// Given array of post objects, it returns the wrapper promise
-PostSchema.statics.getPostsWrapperPromise = function (posts, query, user, models) {
-  var userIds = []
-  var userIdStrings = []
-  var commentIds = []
-  var postFeed = posts.reduce(function (postsObj, post) {
-    let postObj = post.toJSON()
-    postObj.likes = getLikeData(post.likes, user)
-    let commentPage = API_BASE + 'posts/' + post.id + '/comments'
-    postObj.comments = getCommentData(post.comments, user, commentPage)
-    postsObj[post._id] = postObj
-    commentIds = commentIds.concat(post.comments)
-    if (userIdStrings.indexOf(post.userId.toString()) === -1) {
-      userIdStrings.push(post.userId.toString())
-      userIds.push(post.userId)
-    }
-    return postsObj
-  }, {});
-  return User.getUserFeedPromise(userIds).then(function (userFeed) {
-    return { posts: postFeed, users: userFeed }
-  })
+  return this.find(queryObj).exec();
 }
 
 // Find a post given its id
-PostSchema.statics.findPostById = function (postId, callback) {
-  this.findById(postId, function (err, post) {
-    callback(err, post)
-  })
-}
+PostSchema.statics.findPostById = function (postId) {
+  return this.findById(postId).exec();
+};
+
+PostSchema.statics.findAndUpdate = function (postId, update) {
+  const options = { safe: true, upsert: true, new: true };
+  return this.findByIdAndUpdate(postId, update, options).exec()
+};
 
 // Add or remove the user from like data (toggle like)
-PostSchema.statics.updateLikePromise = function (postId, userId, liked) {
+PostSchema.statics.updateLike = function (postId, userId, liked) {
   let options = { safe: true, new: true }
   let updateObj = liked ? { $addToSet: { likes: userId } } : { $pull: { likes: userId } }
-  return this.findByIdAndUpdate(postId, updateObj, options).exec().then(function (post) {
-    return { liked: liked, userId: userId, postId: post._id }
-  })
-}
-
-// Add a new comment to an existing comment
-PostSchema.statics.addCommentPromise = function (postId, replyText, user, models) {
-  let newComment = {
-    content: replyText,
-    userId: user.id
-  }
-  return this.findById(postId).exec().then(function (post) {
-    newComment.postId = post.id
-    return new Comment(newComment).save()
-  }).then(function (comment) {
-    let updateObj = { $push: { comments: comment._id } }
-    let options = { safe: true, upsert: true, new: true }
-    return this.model.findByIdAndUpdate(postId, updateObj, options).exec().then(function (updatedComment) {
-      newComment.commentId = comment.id
-      newComment.commentedOn = comment.commentedOn
-      newComment.likes = getLikeData([], user)
-      newComment.replies = getCommentData([], user, null)
-
-      return newComment
-    })
-  })
-}
-
-// Get commnets for the given postId,
-PostSchema.statics.getCommentsPromise = function (postId, query, user, models) {
-  return this.findById(postId).exec().then(function (post) {
-    return Comment.getCommentsPromise(post.comments, query, user, models).then(function (feed) {
-
-      return feed
-    })
-  })
-}
+  return this.findByIdAndUpdate(postId, updateObj, options).exec()
+    .then(function (post) {
+      return { liked: liked, userId: userId, postId: post._id }
+    });
+};
 
 // Add a new video post
 // TODO we need to check whether there is any existing
-PostSchema.statics.addPostPromise = function (postData, user, models) {
+PostSchema.statics.addPost = function (postData, user) {
   let newPost = {
     url: postData.url,
     title: postData.title,
@@ -167,31 +80,14 @@ PostSchema.statics.addPostPromise = function (postData, user, models) {
     category: postData.category,
     language: postData.language,
   }
-  return new this(newPost).save().then(function (post) {
-    let date = new Date(post.postedOn.getTime());
-    // We want date part only (set to its midnight)
-    date.setHours(12, 0, 0, 0);
-    var queryObj = { date: date },
-      updateObj = { $push: { posts: post._id } },
-      options = { upsert: true, new: true };
-    // Find the feed document and update
-    return Feed.findOneAndUpdate(queryObj, updateObj, options).exec().then(function (feedObj) {
-      let postObj = post.toJSON()
-      postObj.likes = getLikeData([], user)
-      postObj.comments = getCommentData([], user, null)
-
-      return { feedKey: date, post: postObj };
-    })
-  })
-}
+  return new this(newPost).save();
+};
 
 PostSchema.statics.findPostByUrl = function (url) {
   let queryObj = {
     'url': url
   }
-  return this.findOne(queryObj).exec().then(function (video) {
-    return video
-  })
-}
+  return this.findOne(queryObj).exec();
+};
 
 mongoose.model('Post', PostSchema);

@@ -22,14 +22,12 @@ var UserSchema = new Schema({
 
 UserSchema.index({ profileId: 1 }, { unique: true });
 
-UserSchema.statics.findUsers = function (userIds, callback) {
-    this.find({
+UserSchema.statics.findUsers = function (userIds) {
+    return this.find({
         '_id': {
             $in: userIds
         }
-    }, function (err, users) {
-        callback(err, users)
-    })
+    });
 }
 
 UserSchema.statics.getUserFeedPromise = function (userIds) {
@@ -37,14 +35,14 @@ UserSchema.statics.getUserFeedPromise = function (userIds) {
         '_id': {
             $in: userIds
         }
-    }
+    };
     return this.find(queryObj).exec().then(function (users) {
         var userFeed = users.reduce(function (users, user) {
             users[user._id] = user
             return users
         }, {});
 
-        return userFeed
+        return userFeed;
     })
 }
 

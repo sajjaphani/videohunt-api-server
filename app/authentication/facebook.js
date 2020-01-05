@@ -1,8 +1,8 @@
 const passport = require('passport');
-const passportFacebook = require('passport-facebook');
+const { Strategy } = require('passport-facebook');
 
 const config = require('../../config');
-const users = require('../services/users');
+const { getUserById } = require('../services/user.service');
 
 const passportConfig = {
     clientID: config.get('authentication.facebook.clientId'),
@@ -13,9 +13,9 @@ const passportConfig = {
 };
 
 if (passportConfig.clientID) {
-    passport.use(new passportFacebook.Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
+    passport.use(new Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
         // console.log('Profile', JSON.stringify(profile));
-        users.getUserById(profile.id)
+        getUserById(profile.id)
             .then(doc => {
                 if (doc) {
                     return doc;

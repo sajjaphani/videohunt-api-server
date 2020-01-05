@@ -4,7 +4,7 @@ const passport = require('passport')
 const categories = require('../util/categories').getCaterogies()
 const languages = require('../util/languages').getLanguages()
 
-const { getCategoryFeed } = require('../services/feed.service');
+const { getFeedByCategory } = require('../services/feed.service');
 const { parseCategoryQuery } = require('./query-parser')
 
 const { API_BASE } = require('./constants')
@@ -31,7 +31,7 @@ router.get('/:category',
             queryParams.category = req.params.category
             // Category Posts feed can have pagination
             queryParams.pagingRelativePath = API_BASE + 'category/' + req.params.category
-            getCategoryFeed(queryParams, user).then(function (feed) {
+            getFeedByCategory(queryParams, user).then(function (feed) {
                 res.status(200).json(feed)
             }).then(undefined, function (err) {
                 res.send(err)

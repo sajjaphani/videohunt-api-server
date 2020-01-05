@@ -1,26 +1,27 @@
 const router = require('express').Router()
 const passport = require('passport')
 
-const { parseFeedQuery, parseQuery } = require('./query-parser')
-const { API_BASE } = require('./constants')
-const { checkNewPost, saveNewPost } = require('../models/helpers/PostService')
+const { parseFeedQuery, parseQuery } = require('./query-parser');
+const { API_BASE } = require('./constants');
+const { checkNewPost, saveNewPost, getPosts, updateLike, addComment, getComments } = require('../services/post.service');
 const { getFeed } = require('../services/feed.service');
 
 router.get('/',
     (req, res, next) => {
-        let queryParams = parseFeedQuery(req.query, 3)
+        let queryParams = parseFeedQuery(req.query, 3);
         // Posts feed can have pagination
         queryParams.pagingRelativePath = API_BASE + 'posts'
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
-            if (err)
+            if (err) {
                 return next(err);
-            getFeed(queryParams, user).then(feed => {
-                console.log(feed);
-                res.status(200).json(feed);
-            }).catch(err => {
-                console.log(err);
-                res.send(err);
-            });
+            }
+            getFeed(queryParams, user)
+                .then(feed => {
+                    res.status(200).json(feed);
+                }).catch(err => {
+                    console.log(err);
+                    res.send(err);
+                });
         })(req, res, next);
     });
 
@@ -33,8 +34,7 @@ router.get('/:postId',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            let models = req.app.get('models')
-            models.Post.getPostsPromise(req.params.postId, null, user, models).then(function (feed) {
+            getPosts(req.params.postId, null, user).then(function (feed) {
                 res.status(200).json({ data: feed });
             }).then(undefined, function (err) {
                 res.send(err)
@@ -52,14 +52,13 @@ router.post('/status',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 let postData = req.body
-                let models = req.app.get('models')
-                checkNewPost(postData.url, user, models).then(function (data) {
+                checkNewPost(postData.url, user).then(function (data) {
                     // console.log(data)
-                    res.json(data)
+                    res.status(200).json(data)
                 }).catch(function (err) {
-                    // console.log(err)
+                    console.log(err)
                     res.json({ status: 'error', data: { error: err.error, message: err.message } })
-                })
+                });
             }
         })(req, res, next);
     });
@@ -73,12 +72,11 @@ router.post('/',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 let postData = req.body
-                let models = req.app.get('models')
-                saveNewPost(postData, user, models).then(function (data) {
-                    res.json(data)
+                saveNewPost(postData, user).then(function (data) {
+                    res.status(200).json(data);
                 }).catch(function (err) {
                     res.json({ status: 'error', data: err })
-                })
+                });
             }
         })(req, res, next);
     });
@@ -93,12 +91,12 @@ router.get('/:postId/comments',
         passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
             if (err)
                 return next(err);
-            let models = req.app.get('models');
-            models.Post.getCommentsPromise(req.params.postId, queryParams, user, models).then(function (response) {
-                res.status(200).json(response)
-            }).then(undefined, function (err) {
-                res.send(err)
-            });
+            getComments(req.params.postId, queryParams, user)
+                .then(function (response) {
+                    res.status(200).json(response)
+                }).then(undefined, function (err) {
+                    res.send(err)
+                });
         })(req, res, next);
     });
 
@@ -111,12 +109,12 @@ router.post('/:postId/comments',
             if (user === false) {
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
-                let models = req.app.get('models');
-                models.Post.addCommentPromise(req.params.postId, req.body.content, user, models).then(function (response) {
-                    res.status(201).json(response)
-                }).then(undefined, function (err) {
-                    res.send(err)
-                });
+                addComment(req.params.postId, req.body.content, user)
+                    .then(function (response) {
+                        res.status(201).json(response);
+                    }).then(undefined, function (err) {
+                        res.send(err)
+                    });
             }
         })(req, res, next);
     });
@@ -131,13 +129,13 @@ router.post('/:postId/like',
                 res.status(401).json({ message: 'Unauthorized' });
             } else {
                 // User loggedin 
-                let models = req.app.get('models')
                 let likeData = req.body
-                models.Post.updateLikePromise(req.params.postId, user.id, likeData.liked).then(function (updatedStatus) {
-                    res.status(200).json(updatedStatus)
-                }).then(undefined, function (err) {
-                    res.send(err)
-                });
+                updateLike(req.params.postId, user.id, likeData.liked)
+                    .then(function (updatedStatus) {
+                        res.status(200).json(updatedStatus)
+                    }).then(undefined, function (err) {
+                        res.send(err)
+                    });
             }
         })(req, res, next);
     });
