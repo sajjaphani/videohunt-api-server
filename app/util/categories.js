@@ -1,5 +1,5 @@
 
- function getCaterogies() {
+function getCaterogies() {
     return ['action', 'comedy', 'romance', 'inspirational', 'science', 'short-films',
         'sports', 'technology', 'trailers', 'viral'
     ]

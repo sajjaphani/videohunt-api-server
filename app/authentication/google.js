@@ -19,7 +19,6 @@ if (passportConfig.clientID) {
                 if (doc) {
                     return doc;
                 } else {
-                    console.log('profile', profile);
                     const user = {
                         profileId: profile.id,
                         name: profile.displayName,

@@ -14,13 +14,11 @@ const passportConfig = {
 
 if (passportConfig.clientID) {
     passport.use(new Strategy(passportConfig, function (req, accessToken, refreshToken, profile, done) {
-        // console.log('Profile', JSON.stringify(profile));
         getUserById(profile.id)
             .then(doc => {
                 if (doc) {
                     return doc;
                 } else {
-                    // console.log('Profile', profile);
                     const user = {
                         profileId: profile.id,
                         name: profile.displayName,
@@ -30,7 +28,6 @@ if (passportConfig.clientID) {
                 }
             })
             .then(user => {
-                // console.log('User', user);
                 let transformedUser = {
                     id: user.id,
                     profileId: user.profileId,
