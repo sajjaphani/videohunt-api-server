@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-var env = require('../util/env');
+var env = require('../app/util/env');
 var http = require('http');
-var app = require('../app');
+var app = require('../server');
 
 var port = env.NODE_SERVER_PORT;
 
@@ -29,5 +29,3 @@ server.on('error', (error) => {
       throw error;
   }
 });
-
-
