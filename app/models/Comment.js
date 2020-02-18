@@ -1,7 +1,5 @@
 var mongoose = require('mongoose');
 
-var User = mongoose.model('User');
-
 const { getLikeData, getCommentData } = require('./helpers/ModelHelper')
 const { getFeedQueryObject } = require('./helpers/QueryObjectHelper')
 const { getFeedPagination } = require('./helpers/PaginationHelper')

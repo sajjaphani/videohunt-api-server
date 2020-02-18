@@ -18,7 +18,8 @@ var FeedSchema = new Schema({
 
 FeedSchema.statics.getFeed = function (query) {
     let feedQueryObj = getFeedQueryObject(query, 'date');
-    return this.find(feedQueryObj).sort({ 'date': -1 }).limit(query.limit + 1).exec();
+    const limit = query.limit + 1;
+    return this.find(feedQueryObj).sort({ date: -1 }).limit(limit).exec();
 };
 
 FeedSchema.statics.updateFeed = function (query, update) {

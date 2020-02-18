@@ -8,6 +8,7 @@ var Comment = mongoose.model('Comment');
 const { updateFeed } = require('./feed.service');
 const { getEmbedData } = require('../models/helpers/EmbedHelper')
 const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper')
+const { API_BASE } = require('../routes/constants')
 
 function checkNewPost(url, user) {
     return Post.findPostByUrl(url).then(function (post) {
