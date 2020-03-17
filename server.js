@@ -53,17 +53,16 @@ passport.deserializeUser(function (user, done) {
 function generateUserToken(req, res) {
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
-
-  const baseHost = req.protocol + '://' + req.get('host');
-  const redirectUrl = `${baseHost}/login/success?session-token=${accessToken}`;
+  const frontEndHost = 'https://localhost:3000';
+  const redirectUrl = `${frontEndHost}/login/success?session-token=${accessToken}`;
   res.redirect(redirectUrl);
 }
 
 app.get('/api/v1/authentication/google',
-  passport.authenticate('google', { session: false, scope: ['openid', 'profile', 'email'] }))
+  passport.authenticate('google', { session: false, scope: ['openid', 'profile', 'email'] }));
 app.get('/api/authentication/google/redirect',
   passport.authenticate('google', { failureRedirect: '/' }),
-  generateUserToken)
+  generateUserToken);
 
 app.get('/api/v1/authentication/facebook',
   passport.authenticate('facebook', { session: false }));

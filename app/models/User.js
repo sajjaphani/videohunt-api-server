@@ -18,6 +18,7 @@ var UserSchema = new Schema({
         type: Date,
         default: Date.now
     },
+    'picture': String, // Profile Image URL
 });
 
 UserSchema.index({ profileId: 1 }, { unique: true });
@@ -45,5 +46,11 @@ UserSchema.statics.getUserFeedPromise = function (userIds) {
         return userFeed;
     })
 }
+
+UserSchema.statics.createOrUpdate = function (query, update) {
+    const options = { upsert: true, new: true };
+    // console.log(query, update, options);
+    return this.findOneAndUpdate(query, update, options).exec();
+};
 
 mongoose.model('User', UserSchema);

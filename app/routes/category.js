@@ -20,7 +20,7 @@ router.get('/:category',
             if (err)
                 return next(err);
 
-            if (categories.indexOf(req.params.category) == -1)
+            if (categories[req.params.category] === undefined)
                 return res.status(422).json({ category: req.params.category, message: 'Invalid Category' });
 
             let language = req.query.language || 'all'
