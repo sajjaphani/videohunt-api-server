@@ -3,11 +3,12 @@ const { Strategy } = require('passport-facebook');
 
 const config = require('../../config');
 const { createOrUpdateUser } = require('../services/user.service');
+const { getClientBaseUrl } = require('../util/host-utils');
 
 const passportConfig = {
     clientID: config.get('authentication.facebook.clientId'),
     clientSecret: config.get('authentication.facebook.clientSecret'),
-    callbackURL: '/api/v1/authentication/facebook/redirect',
+    callbackURL: getClientBaseUrl() + '/api/v1/authentication/facebook/redirect',
     passReqToCallback: true,
     profileFields: ['emails', 'displayName', 'profileUrl', 'photos', 'name']
 };

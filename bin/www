@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 
-var env = require('../app/util/env');
 var http = require('http');
 var app = require('../server');
 
-var port = env.NODE_SERVER_PORT;
+const { getServerPort } = require('../app/util/host-utils');
+
+var port = getServerPort();
 
 var server = http.createServer(app);
 server.listen(port, () => {
-  console.log("API Server started and listening on port:", port)
+  console.log("Videohunt API Server started and listening on port:", port)
 });
 
-server.on('error', (error) => {
+server.on('error', onError);
+
+function onError(error) {
   if (error.syscall !== 'listen') {
     throw error;
   }
@@ -28,4 +31,4 @@ server.on('error', (error) => {
     default:
       throw error;
   }
-});
+}

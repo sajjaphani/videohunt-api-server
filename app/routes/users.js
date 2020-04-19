@@ -1,8 +1,16 @@
 const router = require('express').Router();
 
+const { SESSION_COOKIE_NAME } = require('../util/misc');
+
 router.get("/", (req, res) => {
     // We should rather return an error here
     res.status(200).json({ users: ['None'] });
+});
+
+router.delete("/logout", (req, res) => {
+    req.logout();
+    res.clearCookie(SESSION_COOKIE_NAME);
+    res.status(200).json({ status: 'ok', data: { message: 'User logged out.' } });
 });
 
 router.get("/:userId", (req, res) => {

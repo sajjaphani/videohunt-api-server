@@ -4,6 +4,8 @@ var gulp = require('gulp');
 var browserSync = require('browser-sync').create();
 var nodemon = require('gulp-nodemon');
 
+const { getClientBaseUrl } = require('./app/util/host-utils');
+
 gulp.task('default', ['nodemon'], function () {
     console.log('Gulp')
 });
@@ -11,7 +13,7 @@ gulp.task('default', ['nodemon'], function () {
 // We do not require browser syn for API server for now
 gulp.task('browser-sync', ['nodemon'], function () {
     browserSync.init(null, {
-        proxy: "http://localhost:3000",
+        proxy: getClientBaseUrl(),
         files: ['./public/**/*.*', './app.js', './routes/**/*.*', './util/**/*.*', './models/**/*.*'],
         browser: "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
         port: 7000,

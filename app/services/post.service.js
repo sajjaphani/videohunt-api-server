@@ -6,71 +6,17 @@ var User = mongoose.model('User');
 var Comment = mongoose.model('Comment');
 
 const { updateFeed } = require('./feed.service');
-const { getEmbedData } = require('../models/helpers/EmbedHelper')
 const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper')
 const { API_BASE } = require('../routes/constants')
-
-function checkNewPost(url, user) {
-    return Post.findPostByUrl(url).then(function (post) {
-        if (post) {
-            return { status: 'duplicate', data: post };
-        } else {
-            return VideoEmbed.findVideoByUrl(url).then(function (embedVideo) {
-                if (embedVideo)
-                    return { status: 'submitted', data: embedVideo };
-                else {
-                    return getEmbedData(url).then(function (data) {
-                        data.userId = user.id;
-                        return VideoEmbed.addVideoEmbedPromise(data)
-                            .then(function (embed) {
-                                return { status: 'ok', data: embed };
-                            });
-                    });
-                }
-            });
-        }
-    });
-}
-
-function saveNewPost(postData, user) {
-    return VideoEmbed.findVideoByUrl(postData.url)
-        .then(function (embedVideo) {
-            if (!embedVideo)
-                return { status: 'error', data: { error: 'err.error', message: 'err.message' } };
-            else {
-                embedVideo.title = postData.title;
-                embedVideo.description = postData.description;
-                embedVideo.category = postData.category;
-                embedVideo.language = postData.language;
-                return Post.addPost(embedVideo, user).then(function (post) {
-                    let date = new Date(post.postedOn.getTime());
-                    // We want date part only (set to its midnight)
-                    date.setHours(12, 0, 0, 0);
-                    const query = { date: date };
-                    const update = { $push: { posts: post._id } };
-
-                    // Find the feed document and update
-                    return updateFeed(query, update).then(function (feedObj) {
-                        let postObj = { ...post };
-                        delete postObj._id;
-                        postObj.id = post._id;
-                        postObj.likes = getLikeData([], user)
-                        postObj.comments = getCommentData([], user, null)
-
-                        return { feedKey: date, post: postObj };
-                    });
-                });
-            }
-        });
-}
+const { getEmbedUrl, fetchOEmbed } = require('./embed.service');
 
 function getPosts(postId, query, user) {
     return Post.getPosts(postId, query)
-        .then(function (posts) {
+        .then((posts) => {
             var userIds = [];
             var userIdStrings = [];
             var commentIds = [];
-            var postFeed = posts.reduce(function (postsObj, post) {
+            var postFeed = posts.reduce((postsObj, post) => {
                 let postObj = post.toJSON()
                 postObj.likes = getLikeData(post.likes, user)
                 let commentPage = API_BASE + 'posts/' + post.id + '/comments'
@@ -86,9 +32,99 @@ function getPosts(postId, query, user) {
             }, {});
 
             return User.getUserFeedPromise(userIds)
-                .then(function (userFeed) {
+                .then((userFeed) => {
                     return { posts: postFeed, users: userFeed };
                 })
+        });
+}
+
+function checkNewPost(url, user) {
+    return getEmbedUrl(url)
+        .then(() => {
+            return Post.findPostByUrl(url)
+        })
+        .then((post) => {
+            if (post) {
+                const validationError = {
+                    status: 'error',
+                    error: {
+                        type: "DuplicatePost",
+                        message: "There is a post that exists for the given URL!",
+                        code: 200101,
+                        errorData: post
+                    }
+                };
+                return Promise.reject(validationError);
+            } else {
+                return VideoEmbed.findVideoByUrl(url)
+            }
+        })
+        .then((embedVideo) => {
+            if (embedVideo) {
+                return embedVideo;
+            } else {
+                return fetchOEmbed(url)
+                    .then(embed => {
+                        embed.url = url;
+                        embed.embed = embed.html;
+                        return embed;
+                    }).then((data) => {
+                        data.userId = user.id;
+                        return VideoEmbed.addVideoEmbedPromise(data)
+                    });
+            }
+        })
+        .then((embed) => {
+            return { status: 'ok', data: embed };
+        })
+        .catch((error) => {
+            console.log('err', error)
+            return error;
+        });
+}
+
+function saveNewPost(postData, user) {
+    return VideoEmbed.findVideoByUrl(postData.url)
+        .then((embedVideo) => {
+            if (!embedVideo)
+                return { status: 'error', data: { error: 'err.error', message: 'err.message' } };
+            else {
+                embedVideo.title = postData.title;
+                embedVideo.description = postData.description;
+                embedVideo.categories = postData.categories;
+                embedVideo.language = postData.language;
+                return Post.addPost(embedVideo, user).then((post) => {
+                    let date = new Date(post.postedOn.getTime());
+                    // We want date part only (set to its midnight)
+                    date.setHours(12, 0, 0, 0);
+                    const query = { date: date };
+                    const update = { $push: { posts: post._id } };
+
+                    // Find the feed document and update
+                    return updateFeed(query, update).then((feedObj) => {
+                        let postObj = {
+                            url: post.url, title: post.title,
+                            author: post.author, author_url: post.author_url, provider_name: post.provider_name,
+                            description: post.description, thumbnail_url: post.thumbnail_url,
+                            thumbnail_width: post.thumbnail_width, thumbnail_height: post.thumbnail_height,
+                            embed: post.embed, userId: post.userId, language: post.language, postedOn: post.postedOn
+                        };
+
+                        postObj.id = post._id;
+                        postObj.likes = getLikeData([], user)
+                        postObj.comments = getCommentData([], user, null)
+
+                        return { feedKey: date, post: postObj };
+                    });
+                }).then(embedData => {
+                    return VideoEmbed.findByIdAndRemove(embedVideo._id).exec()
+                        .then(() => {
+                            return embedData;
+                        }).catch(() => {
+                            return embedData;
+                        });
+                });
+            }
         });
 }
 
@@ -98,11 +134,11 @@ function updateLike(postId, userId, liked) {
 
 function addComment(postId, content, user) {
     return Comment.add(content, user.id)
-        .then(function (comment) {
+        .then((comment) => {
             let updateObj = { $push: { comments: comment._id } }
             let options = { safe: true, upsert: true, new: true };
             return Post.findAndUpdate(postId, updateObj, options)
-                .then(function (post) {
+                .then((post) => {
                     let newComment = {
                         content: content,
                         userId: user.id
@@ -120,11 +156,11 @@ function addComment(postId, content, user) {
 
 function getComments(postId, query, user) {
     return Post.findPostById(postId)
-        .then(function (post) {
+        .then((post) => {
             return Comment.getCommentsPromise(post.comments, query, user)
-                .then(function (feed) {
+                .then((feed) => {
                     return User.getUserFeedPromise(feed.data.users)
-                        .then(function (userFeed) {
+                        .then((userFeed) => {
                             feed.data.users = userFeed
                             return feed
                         })
@@ -132,6 +168,24 @@ function getComments(postId, query, user) {
         });
 }
 
+function searchPosts(searchStr, user) {
+    return Post.findPosts(searchStr)
+        .then((posts) => {
+            const _posts = posts.map(post => {
+                return {
+                    id: post._id,
+                    title: post.title,
+                    description: post.description,
+                    image: post.thumbnail_url
+                }
+            });
+
+            return _posts;
+        });
+}
+
 module.exports = {
-    checkNewPost, saveNewPost, getPosts, updateLike, addComment, getComments
+    checkNewPost, saveNewPost, getPosts,
+    updateLike, addComment, getComments,
+    searchPosts
 };

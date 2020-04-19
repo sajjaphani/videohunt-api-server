@@ -2,25 +2,52 @@ const router = require('express').Router();
 const passport = require('passport');
 
 const { getFeed } = require('../services/feed.service');
-const { checkNewPost, saveNewPost, getPosts, updateLike, addComment, getComments } = require('../services/post.service');
+const { checkNewPost, saveNewPost, getPosts, updateLike, addComment, getComments, searchPosts } = require('../services/post.service');
+const { findRecommendations } = require('../services/recommendations.service');
 const { parseFeedQuery, parseQuery } = require('./query-parser');
-const { API_BASE } = require('./constants');
+const { API_BASE, SESSION_ERROR } = require('./constants');
 
 router.get('/',
     (req, res, next) => {
         let queryParams = parseFeedQuery(req.query, 3);
         // Posts feed can have pagination
-        queryParams.pagingRelativePath = API_BASE + 'posts'
+        queryParams.pagingRelativePath = API_BASE + 'posts';
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
             if (err) {
                 return next(err);
             }
+            const _user = {};
+            if (user) {
+                _user.id = user.id;
+                _user.name = user.name;
+                _user.picture = user.picture;
+            }
             getFeed(queryParams, user)
                 .then(feed => {
+                    feed.data.currentUser = _user;
                     res.status(200).json(feed);
                 }).catch(err => {
-                    // console.log(err);
-                    res.json({ status: 'error', data: err });
+                    res.json({ status: 'error', error: err });
+                });
+        })(req, res, next);
+    });
+
+router.get('/search',
+    (req, res, next) => {
+        const query = req.query;
+        const queryStr = query.q || '';
+        // Posts feed can have pagination
+        passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
+            if (err) {
+                return next(err);
+            }
+
+            searchPosts(queryStr, user)
+                .then((posts) => {
+                    res.status(200).json({ status: 'ok', data: posts });
+                }).catch(err => {
+                    console.log(err);
+                    res.json({ status: 'error', error: err });
                 });
         })(req, res, next);
     });
@@ -32,13 +59,31 @@ router.get('/:postId',
         // When we query single page, we can have pagination for comments
         // queryParams.pagingRelativePath = 'posts' + req.params.postId + '/comments'
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+
             getPosts(req.params.postId, null, user)
                 .then((feed) => {
                     res.status(200).json({ data: feed });
                 }).catch((err) => {
-                    res.json({ status: 'error', data: err });
+                    res.json({ status: 'error', error: err });
+                });
+        })(req, res, next);
+    });
+
+router.get('/:postId/recommendations',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
+            if (err) {
+                return next(err);
+            }
+
+            findRecommendations(req.params.postId, user)
+                .then((data) => {
+                    res.status(200).json({ status: 'ok', data: data });
+                }).catch((err) => {
+                    res.json({ status: 'error', error: err });
                 });
         })(req, res, next);
     });
@@ -47,19 +92,21 @@ router.get('/:postId',
 router.post('/status',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 let postData = req.body;
                 checkNewPost(postData.url, user)
                     .then((data) => {
                         res.status(200).json(data);
                     }).catch((err) => {
-                        // console.log(err)
+                        console.log(err)
                         const _data = { error: err.error, message: err.message };
-                        res.json({ status: 'error', data: _data });
+                        res.json({ status: 'error', error: _data });
                     });
             }
         })(req, res, next);
@@ -68,17 +115,19 @@ router.post('/status',
 router.post('/',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 let postData = req.body
                 saveNewPost(postData, user)
                     .then((data) => {
                         res.status(200).json(data);
                     }).catch((err) => {
-                        res.json({ status: 'error', data: err });
+                        res.json({ status: 'error', error: err });
                     });
             }
         })(req, res, next);
@@ -92,13 +141,15 @@ router.get('/:postId/comments',
         // Post comments feed can have pagination
         queryParams.pagingRelativePath = API_BASE + 'posts/' + req.params.postId + '/comments'
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+
             getComments(req.params.postId, queryParams, user)
                 .then((response) => {
                     res.status(200).json(response);
                 }).catch((err) => {
-                    res.json({ status: 'error', data: err });
+                    res.json({ status: 'error', error: err });
                 });
         })(req, res, next);
     });
@@ -107,16 +158,18 @@ router.get('/:postId/comments',
 router.post('/:postId/comments',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 addComment(req.params.postId, req.body.content, user)
                     .then((response) => {
                         res.status(201).json(response);
                     }).catch((err) => {
-                        res.json({ status: 'error', data: err });
+                        res.json({ status: 'error', error: err });
                     });
             }
         })(req, res, next);
@@ -126,17 +179,19 @@ router.post('/:postId/comments',
 router.post('/:postId/like',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
+            }
+            
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 let likeData = req.body
                 updateLike(req.params.postId, user.id, likeData.liked)
                     .then((updatedStatus) => {
                         res.status(200).json(updatedStatus);
                     }).catch((err) => {
-                        res.json({ status: 'error', data: err });
+                        res.json({ status: 'error', error: err });
                     });
             }
         })(req, res, next);

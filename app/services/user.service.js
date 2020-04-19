@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 
 var User = mongoose.model('User');
+var Subscription = mongoose.model('Subscription');
 
 function getUserById(profileId) {
     return User.findOne({ profileId: profileId });
@@ -14,8 +15,13 @@ function createOrUpdateUser(query, userObj) {
     return User.createOrUpdate(query, userObj);
 }
 
+function addSubscription(email) {
+    return Subscription.createSubscription(email);
+}
+
 module.exports = {
     getUserById,
     createUser,
-    createOrUpdateUser
+    createOrUpdateUser,
+    addSubscription
 };

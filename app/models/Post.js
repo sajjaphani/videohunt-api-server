@@ -7,7 +7,7 @@ var Schema = mongoose.Schema,
 
 var PostSchema = new Schema({
   'url': { type: String, unique: true },
-  'title': String,
+  'title': { type: String },
   'author': String,
   'author_url': String,
   'provider_name': String,
@@ -15,19 +15,19 @@ var PostSchema = new Schema({
   'thumbnail_url': String,
   'thumbnail_width': Number,
   'thumbnail_height': Number,
-  'html': String, // Embedded content
+  'embed': String, // Embedded content
   'comments': [ObjectId], // list of comments on this
   'likes': [ObjectId], // Users who liked this
-  'userId': ObjectId, // User who posted this
-  'language': String, // Primary Language
-  'category': String, // Primary Category
+  'userId': ObjectId,
+  'language': String,
+  'categories': [ObjectId],
   'postedOn': {
     type: Date,
     default: Date.now
   }
 });
 
-PostSchema.index({ url: 1 }, { unique: true });
+PostSchema.index({ url: 'text', title: 'text' });
 
 // This will handle computing posts feed for a single postId or an array of ids
 PostSchema.statics.getPosts = function (postIds, query) {
@@ -62,8 +62,6 @@ PostSchema.statics.updateLike = function (postId, userId, liked) {
     });
 };
 
-// Add a new video post
-// TODO we need to check whether there is any existing
 PostSchema.statics.addPost = function (postData, user) {
   let newPost = {
     url: postData.url,
@@ -75,11 +73,12 @@ PostSchema.statics.addPost = function (postData, user) {
     thumbnail_url: postData.thumbnail_url,
     thumbnail_width: postData.thumbnail_width,
     thumbnail_height: postData.thumbnail_height,
-    html: postData.html,
+    embed: postData.embed,
     userId: user.id,
-    category: postData.category,
+    categories: postData.categories,
     language: postData.language,
-  }
+  };
+
   return new this(newPost).save();
 };
 
@@ -87,7 +86,15 @@ PostSchema.statics.findPostByUrl = function (url) {
   let queryObj = {
     'url': url
   }
+
   return this.findOne(queryObj).exec();
+};
+
+PostSchema.statics.findPosts = function (text) {
+  return this.find(
+    { $text: { $search: text } },
+    { score: { $meta: "textScore" } }
+  ).sort({ postedOn: 1, score: { $meta: "textScore" } }).exec();
 };
 
 mongoose.model('Post', PostSchema);

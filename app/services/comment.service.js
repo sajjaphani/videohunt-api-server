@@ -11,11 +11,11 @@ function updateLike(commentId, userId, liked) {
 
 function getReplies(commentId, query, user) {
     return Comment.findById(commentId).exec()
-        .then(function (comment) {
+        .then((comment) => {
             return Comment.getCommentsPromise(comment.comments, query, user)
-                .then(function (feed) {
+                .then((feed) => {
                     return User.getUserFeedPromise(feed.data.users)
-                        .then(function (userFeed) {
+                        .then((userFeed) => {
                             feed.data.users = userFeed
                             return feed
                         })
@@ -25,11 +25,11 @@ function getReplies(commentId, query, user) {
 
 function addReply(commentId, replyText, user) {
     return Comment.add(replyText, user.id)
-        .then(function (comment) {
+        .then((comment) => {
             let updateObj = { $push: { comments: comment._id } }
             let options = { safe: true, upsert: true, new: true }
             return Comment.findByIdAndUpdate(commentId, updateObj, options).exec()
-                .then(function (cmnt) {
+                .then((cmnt) => {
                     let newComment = {
                         content: replyText,
                         userId: user.id

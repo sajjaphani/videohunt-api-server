@@ -1,11 +1,28 @@
 const convict = require('convict');
 
 const config = convict({
-    http: {
-        port: {
-            doc: 'The port to listen on',
-            default: 3000,
-            env: 'PORT'
+    hosts: {
+        server: {
+            secure: {
+                doc: 'Is https-enabled?',
+                default: true
+            },
+            port: {
+                doc: 'The API Server port to listen on.',
+                default: 8811,
+                env: 'PORT'
+            }
+        },
+        client: {
+            secure: {
+                doc: 'Is https-enabled?',
+                default: true
+            },
+            port: {
+                doc: 'The Front End app port to listen on.',
+                default: 3000,
+                env: 'PORT'
+            }
         }
     },
     authentication: {

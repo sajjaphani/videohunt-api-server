@@ -4,7 +4,7 @@ const passport = require('passport');
 const { getReplies, updateLike, addReply } = require('../services/comment.service');
 
 const { parseQuery } = require('./query-parser');
-const { API_BASE } = require('./constants');
+const { API_BASE, SESSION_ERROR } = require('./constants');
 
 // TODO we should be getting post id as well to validate the post also?
 router.get("/", (req, res) => {
@@ -29,7 +29,7 @@ router.get('/:commentId/comments',
                 .then((commentFeed) => {
                     res.status(200).json(commentFeed)
                 }).catch((err) => {
-                    res.json({ status: 'error', data: err });
+                    res.json({ status: 'error', error: err });
                 });
         })(req, res, next);
     });
@@ -41,14 +41,14 @@ router.post('/:commentId/comments',
             if (err)
                 return next(err);
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 let commentData = req.body
                 addReply(req.params.commentId, commentData.content, user)
                     .then((response) => {
                         res.status(201).json(response)
                     }).catch((err) => {
-                        res.json({ status: 'error', data: err });
+                        res.json({ status: 'error', error: err });
                     });
             }
         })(req, res, next);
@@ -61,14 +61,14 @@ router.post('/:commentId/like',
             if (err)
                 return next(err);
             if (user === false) {
-                res.status(401).json({ message: 'Unauthorized' });
+                res.status(401).json(SESSION_ERROR);
             } else {
                 let likeData = req.body
                 updateLike(req.params.commentId, user.id, likeData.liked)
                     .then((updatedStatus) => {
                         res.status(200).json(updatedStatus)
                     }).catch((err) => {
-                        res.json({ status: 'error', data: err });
+                        res.json({ status: 'error', error: err });
                     });
             }
         })(req, res, next);

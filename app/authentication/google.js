@@ -4,10 +4,12 @@ const { OAuth2Strategy } = require('passport-google-oauth');
 const config = require('../../config');
 const { createOrUpdateUser } = require('../services/user.service');
 
+const { getClientBaseUrl } = require('../util/host-utils');
+
 const passportConfig = {
     clientID: config.get('authentication.google.clientId'),
     clientSecret: config.get('authentication.google.clientSecret'),
-    callbackURL: '/api/authentication/google/redirect',
+    callbackURL: getClientBaseUrl() + '/api/authentication/google/redirect',
     passReqToCallback: true,
     profileFields: ['emails', 'displayName', 'profileUrl', 'photos', 'name']
 };

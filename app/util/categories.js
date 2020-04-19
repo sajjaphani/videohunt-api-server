@@ -33,5 +33,5 @@ function getCaterogies() {
 }
 
 module.exports = {
-    getCaterogies: getCaterogies
+    getCaterogies
 }

@@ -1,9 +1,11 @@
 var express = require('express');
 var session = require('express-session');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser')
 const passport = require('passport')
 
 const token = require('./app/util/token');
+const { SESSION_COOKIE_NAME } = require('./app/util/misc');
 
 var models = require("./app/models");
 var routes = require("./app/routes");
@@ -31,6 +33,7 @@ app.use(bodyParser.json({
 }));
 
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 app.use('*', (req, res, next) => {
   next();
@@ -53,8 +56,14 @@ passport.deserializeUser(function (user, done) {
 function generateUserToken(req, res) {
   // generate jwt token
   const accessToken = token.generateAccessToken(req.user);
-  const frontEndHost = 'https://localhost:3000';
+  const { getClientBaseUrl } = require('./app/util/host-utils');
+
+  const frontEndHost = getClientBaseUrl();
   const redirectUrl = `${frontEndHost}/login/success?session-token=${accessToken}`;
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+  res.cookie(SESSION_COOKIE_NAME, accessToken, { expires: tomorrow, httpOnly: true });
   res.redirect(redirectUrl);
 }
 
@@ -67,34 +76,8 @@ app.get('/api/authentication/google/redirect',
 app.get('/api/v1/authentication/facebook',
   passport.authenticate('facebook', { session: false }));
 app.get('/api/v1/authentication/facebook/redirect',
-  passport.authenticate('facebook', {
-    failureRedirect: '/'
-  }),
+  passport.authenticate('facebook', { failureRedirect: '/' }),
   generateUserToken);
-
-app.get('/api/v1/secure',
-  (req, res, next) => {
-    passport.authenticate(['jwt'], { session: false }, function (err, user, info) {
-      if (err)
-        return next(err);
-      if (user === false) {
-        // User not loggedin, so send feed/comments without logged in user context
-        console.log('User not logged in');
-        res.json({ msg: 'User not logged in' })
-      } else {
-        // User loggedin so send feed/comments with user context
-        console.log('User logged in');
-        res.json({ msg: 'User logged in', user: user })
-      }
-    })(req, res, next);
-  });
-
-app.get('/api/v1/secure2',
-  passport.authenticate(['jwt'], { session: false }),
-  (req, res, next) => {
-
-    res.json({ msg: 'secure2' })
-  });
 
 // catch 404 and forward to error handler
 // As it is an API server, we need to send proper error message in Json
@@ -117,10 +100,7 @@ if (app.get('env') === 'development') {
       console.log(JSON.stringify(err.stack, null, 2));
     }
     res.status(err.status || 500);
-    res.render('error', {
-      message: err.message,
-      error: err
-    });
+    res.status(err.status || 500).json({ status: 'error', error: err });
   });
 }
 
@@ -130,10 +110,7 @@ app.use(function (err, req, res, next) {
   if (err)
     console.log(JSON.stringify(err.stack, null, 2));
   res.status(err.status || 500);
-  res.render('error', {
-    message: err.message,
-    error: {}
-  });
+  res.status(err.status || 500).json({ status: 'error', error: 'Something unexpected happen. Try again!' });
 });
 
 module.exports = app;

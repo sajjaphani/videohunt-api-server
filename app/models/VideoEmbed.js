@@ -17,7 +17,7 @@ var VideoEmbedSchema = new Schema({
   'thumbnail_url': String,
   'thumbnail_width': Number,
   'thumbnail_height': Number,
-  'html': String,
+  'embed': String,
   'userId': ObjectId, // User who submitted this
 });
 
@@ -35,7 +35,6 @@ VideoEmbedSchema.statics.findVideoByUrl = function (url, user) {
 
 // Add a new video post
 VideoEmbedSchema.statics.addVideoEmbedPromise = function (oembedData) {
-  // console.log(oembedData)
   return new this(oembedData).save()
     .then(function (video) {
       return video

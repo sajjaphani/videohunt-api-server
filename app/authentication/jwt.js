@@ -1,10 +1,20 @@
 const passport = require('passport');
-const { Strategy, ExtractJwt } = require('passport-jwt');
+const { Strategy } = require('passport-jwt');
 
 const config = require('../../config');
+const { SESSION_COOKIE_NAME } = require('../util/misc');
+
+const cookieExtractor = (req) => {
+    var token = null;
+    if (req && req.cookies) {
+        token = req.cookies[SESSION_COOKIE_NAME];
+    }
+
+    return token;
+};
 
 const jwtOptions = {
-    jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('jwt'),
+    jwtFromRequest: cookieExtractor,
     secretOrKey: config.get('authentication.token.secret'),
     issuer: config.get('authentication.token.issuer'),
     audience: config.get('authentication.token.audience')

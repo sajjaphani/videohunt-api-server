@@ -17,11 +17,9 @@ router.get("/", (req, res) => {
 router.get('/:category',
     (req, res, next) => {
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
-            if (err)
+            if (err) {
                 return next(err);
-
-            if (categories[req.params.category] === undefined)
-                return res.status(422).json({ category: req.params.category, message: 'Invalid Category' });
+            }
 
             let language = req.query.language || 'all'
             if (language != 'all' && languages.indexOf(req.query.language) == -1)
@@ -33,11 +31,11 @@ router.get('/:category',
             queryParams.pagingRelativePath = API_BASE + 'category/' + req.params.category;
             getFeedByCategory(queryParams, user)
                 .then((feed) => {
-                    res.status(200).json(feed)
+                    res.status(200).json(feed);
                 }).catch((err) => {
-                    res.json({ status: 'error', data: err });
+                    res.json({ status: 'error', error: err });
                 });
         })(req, res, next);
     });
 
-module.exports = router
+module.exports = router;

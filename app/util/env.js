@@ -14,11 +14,6 @@ function environment() {
     var MONGO_PORT = normalizeNumber(process.env.MONGO_PORT || '27017');
 
     /**
-     * port to start node server, default 3000
-     */
-    var NODE_SERVER_PORT = normalizeNumber(process.env.NODE_SERVER_PORT || '8811');
-
-    /**
      * Specific location to store log files.
      * Directory structure will be created if not exists.
      */
@@ -68,7 +63,6 @@ function environment() {
      * @public
      */
     var environment = {
-        NODE_SERVER_PORT: NODE_SERVER_PORT,
         NODE_LOGS_LOCATION: NODE_LOGS_LOCATION,
         NODE_ENV: NODE_ENV,
         USER_SESSION_TIMEOUT: USER_SESSION_TIMEOUT,
