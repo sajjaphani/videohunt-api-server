@@ -43,8 +43,8 @@ router.post('/:commentId/comments',
             if (user === false) {
                 res.status(401).json(SESSION_ERROR);
             } else {
-                let commentData = req.body
-                addReply(req.params.commentId, commentData.content, user)
+                let commentData = req.body;
+                addReply(req.params.commentId, commentData.content, commentData.mention, user)
                     .then((response) => {
                         res.status(201).json(response)
                     }).catch((err) => {

@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const passport = require('passport');
 
 const { SESSION_COOKIE_NAME } = require('../util/misc');
 
@@ -6,6 +7,17 @@ router.get("/", (req, res) => {
     // We should rather return an error here
     res.status(200).json({ users: ['None'] });
 });
+
+router.get('/session',
+    (req, res, next) => {
+        passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
+            if (err) {
+                return next(err);
+            }
+
+            res.status(200).json({ status: 'ok', data: user });
+        })(req, res, next);
+    });
 
 router.delete("/logout", (req, res) => {
     req.logout();

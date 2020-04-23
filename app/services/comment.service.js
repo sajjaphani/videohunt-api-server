@@ -23,8 +23,8 @@ function getReplies(commentId, query, user) {
         });
 }
 
-function addReply(commentId, replyText, user) {
-    return Comment.add(replyText, user.id)
+function addReply(commentId, replyText, mention, user) {
+    return Comment.add(replyText, user.id, mention)
         .then((comment) => {
             let updateObj = { $push: { comments: comment._id } }
             let options = { safe: true, upsert: true, new: true }

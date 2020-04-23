@@ -17,6 +17,10 @@ var CommentSchema = new Schema({
     'commentedOn': {
         type: Date,
         default: Date.now
+    },
+    'mention': {
+        type: ObjectId,
+        required: false
     }
 });
 
@@ -63,11 +67,14 @@ CommentSchema.statics.getCommentsPromise = function (commentIds, query, user) {
         });
 }
 
-CommentSchema.statics.add = function (comment, userId) {
+CommentSchema.statics.add = function (comment, userId, mention) {
     let newComment = {
         content: comment,
         userId: userId
     };
+    if(mention) {
+        newComment.mention = mention;
+    }
     return new this(newComment).save();
 }
 
