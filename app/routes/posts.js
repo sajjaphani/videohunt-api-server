@@ -4,25 +4,25 @@ const passport = require('passport');
 const { getFeed } = require('../services/feed.service');
 const { checkNewPost, saveNewPost, getPosts, updateLike, addComment, getComments, searchPosts } = require('../services/post.service');
 const { findRecommendations } = require('../services/recommendations.service');
-const { parseFeedQuery, parseQuery } = require('./query-parser');
-const { API_BASE, SESSION_ERROR } = require('./constants');
+const { getFeedPostsQueryObject, getPostCommentsQueryObject } = require('./query-parser');
+const { SESSION_ERROR } = require('./constants');
 
 router.get('/',
     (req, res, next) => {
-        let queryParams = parseFeedQuery(req.query, 3);
-        // Posts feed can have pagination
-        queryParams.pagingRelativePath = API_BASE + 'posts';
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
             if (err) {
                 return next(err);
             }
+
             const _user = {};
             if (user) {
                 _user.id = user.id;
                 _user.name = user.name;
                 _user.picture = user.picture;
             }
-            getFeed(queryParams, user)
+
+            const query = getFeedPostsQueryObject(req.query);
+            getFeed(query, user)
                 .then(feed => {
                     feed.data.currentUser = _user;
                     res.status(200).json(feed);
@@ -53,11 +53,8 @@ router.get('/search',
     });
 
 // GET the details of post (by its id)
-// This will further accepts query parameters such as related/recommendations etc
 router.get('/:postId',
     (req, res, next) => {
-        // When we query single page, we can have pagination for comments
-        // queryParams.pagingRelativePath = 'posts' + req.params.postId + '/comments'
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
             if (err) {
                 return next(err);
@@ -137,15 +134,13 @@ router.post('/',
 // Not in use for now
 router.get('/:postId/comments',
     (req, res, next) => {
-        let queryParams = parseQuery(req.query, 5)
-        // Post comments feed can have pagination
-        queryParams.pagingRelativePath = API_BASE + 'posts/' + req.params.postId + '/comments'
         passport.authenticate(['jwt'], { session: false }, (err, user, info) => {
             if (err) {
                 return next(err);
             }
 
-            getComments(req.params.postId, queryParams, user)
+            const query = getPostCommentsQueryObject(req.query);
+            getComments(req.params.postId, query, user)
                 .then((response) => {
                     res.status(200).json(response);
                 }).catch((err) => {
@@ -182,7 +177,7 @@ router.post('/:postId/like',
             if (err) {
                 return next(err);
             }
-            
+
             if (user === false) {
                 res.status(401).json(SESSION_ERROR);
             } else {

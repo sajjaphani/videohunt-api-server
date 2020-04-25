@@ -1,11 +1,5 @@
 var mongoose = require('mongoose');
 
-const { getLikeData, getCommentData } = require('./helpers/ModelHelper')
-const { getFeedQueryObject } = require('./helpers/QueryObjectHelper')
-const { getFeedPagination } = require('./helpers/PaginationHelper')
-
-const { API_BASE } = require('../routes/constants')
-
 var Schema = mongoose.Schema,
     ObjectId = Schema.ObjectId;
 
@@ -36,35 +30,11 @@ CommentSchema.statics.updateLike = function (commentId, userId, liked) {
 
 // Given commentIds get the comments data
 CommentSchema.statics.getCommentsPromise = function (commentIds, query, user) {
-    let feedQueryObj = getFeedQueryObject(query, 'commentedOn');
-    feedQueryObj['_id'] = {
-        $in: commentIds
-    }
-    return this.find(feedQueryObj).sort({ 'commentedOn': -1 }).limit(query.limit + 1).exec()
-        .then(function (comments) {
-            let pagination = getFeedPagination(query, comments, 'commentedOn', query.pagingRelativePath)
-            var userIds = []
-            var userIdStrings = []
-            let commentsFeed = comments.reduce(function (comments, comment) {
-                let commentObj = comment.toJSON()
-                commentObj.likes = getLikeData(comment.likes, user)
-                let commentPage = API_BASE + 'comments/' + comment.id + '/comments'
-                commentObj.replies = getCommentData(comment.comments, user, commentPage)
-                delete commentObj.comments
-
-                comments[comment._id] = commentObj
-                if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
-                    userIdStrings.push(comment.userId.toString())
-                    userIds.push(comment.userId)
-                }
-                return comments;
-            }, {});
-            let feed = { data: { comments: commentsFeed, users: userIds } }
-            if (Object.keys(pagination).length !== 0)
-                feed.pagination = pagination
-
-            return feed
-        });
+    let feedQueryObj = {};
+    feedQueryObj['_id'] = { $in: commentIds };
+    const skip = query.skip || 0;
+    const limit = query.limit || 1;
+    return this.find(feedQueryObj).skip(skip).limit(limit).exec();
 }
 
 CommentSchema.statics.add = function (comment, userId, mention) {
@@ -72,7 +42,7 @@ CommentSchema.statics.add = function (comment, userId, mention) {
         content: comment,
         userId: userId
     };
-    if(mention) {
+    if (mention) {
         newComment.mention = mention;
     }
     return new this(newComment).save();

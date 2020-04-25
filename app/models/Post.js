@@ -29,6 +29,23 @@ var PostSchema = new Schema({
 
 PostSchema.index({ url: 'text', title: 'text' });
 
+// Find Feed Posts
+PostSchema.statics.findFeedPosts = function (query) {
+  console.log(query);
+  const skip = query.skip || 0;
+  const limit = query.limit || 1;
+
+  return this.find().sort({ 'postedOn': -1 }).skip(skip).limit(limit).exec()
+}
+
+// Find posts for topic
+PostSchema.statics.findPostsForTopic = function (query) {
+  const skip = query.skip || 0;
+  const limit = query.limit || 1;
+  const filter = query.filter;
+  return this.find(filter).sort({ 'postedOn': -1 }).skip(skip).limit(limit).exec()
+}
+
 // This will handle computing posts feed for a single postId or an array of ids
 PostSchema.statics.getPosts = function (postIds, query) {
   if (!Array.isArray(postIds))

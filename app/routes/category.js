@@ -1,12 +1,8 @@
 const router = require('express').Router();
 const passport = require('passport');
 
-const categories = require('../util/categories').getCaterogies();
-const languages = require('../util/languages').getLanguages();
-
-const { getFeedByCategory } = require('../services/feed.service');
-const { parseCategoryQuery } = require('./query-parser');
-const { API_BASE } = require('./constants');
+const { getFeedForTopic } = require('../services/feed.service');
+const { getTopicPostsQueryObject } = require('./query-parser');
 
 router.get("/", (req, res) => {
     res.status(200).json({ categories: ['None'] });
@@ -21,15 +17,9 @@ router.get('/:category',
                 return next(err);
             }
 
-            let language = req.query.language || 'all'
-            if (language != 'all' && languages.indexOf(req.query.language) == -1)
-                return res.status(422).json({ category: req.query.language, message: 'Invalid Language' });
-
-            let queryParams = parseCategoryQuery(req.query, 10);
-            queryParams.category = req.params.category;
-            // Category Posts feed can have pagination
-            queryParams.pagingRelativePath = API_BASE + 'category/' + req.params.category;
-            getFeedByCategory(queryParams, user)
+            const query = getTopicPostsQueryObject(req.query);
+            query.category = req.params.category;
+            getFeedForTopic(query, user)
                 .then((feed) => {
                     res.status(200).json(feed);
                 }).catch((err) => {

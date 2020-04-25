@@ -5,8 +5,9 @@ var VideoEmbed = mongoose.model('VideoEmbed');
 var User = mongoose.model('User');
 var Comment = mongoose.model('Comment');
 
-const { updateFeed } = require('./feed.service');
-const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper')
+const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper');
+const { getPostCommentsPaging } = require('../models/helpers/PaginationHelper')
+
 const { API_BASE } = require('../routes/constants')
 const { getEmbedUrl, fetchOEmbed } = require('./embed.service');
 
@@ -94,28 +95,19 @@ function saveNewPost(postData, user) {
                 embedVideo.categories = postData.categories;
                 embedVideo.language = postData.language;
                 return Post.addPost(embedVideo, user).then((post) => {
-                    let date = new Date(post.postedOn.getTime());
-                    // We want date part only (set to its midnight)
-                    date.setHours(12, 0, 0, 0);
-                    const query = { date: date };
-                    const update = { $push: { posts: post._id } };
+                    let postObj = {
+                        url: post.url, title: post.title,
+                        author: post.author, author_url: post.author_url, provider_name: post.provider_name,
+                        description: post.description, thumbnail_url: post.thumbnail_url,
+                        thumbnail_width: post.thumbnail_width, thumbnail_height: post.thumbnail_height,
+                        embed: post.embed, userId: post.userId, language: post.language, postedOn: post.postedOn
+                    };
 
-                    // Find the feed document and update
-                    return updateFeed(query, update).then((feedObj) => {
-                        let postObj = {
-                            url: post.url, title: post.title,
-                            author: post.author, author_url: post.author_url, provider_name: post.provider_name,
-                            description: post.description, thumbnail_url: post.thumbnail_url,
-                            thumbnail_width: post.thumbnail_width, thumbnail_height: post.thumbnail_height,
-                            embed: post.embed, userId: post.userId, language: post.language, postedOn: post.postedOn
-                        };
+                    postObj.id = post._id;
+                    postObj.likes = getLikeData([], user)
+                    postObj.comments = getCommentData([], user, null)
 
-                        postObj.id = post._id;
-                        postObj.likes = getLikeData([], user)
-                        postObj.comments = getCommentData([], user, null)
-
-                        return { feedKey: date, post: postObj };
-                    });
+                    return { feedKey: new Date(), post: postObj };
                 }).then(embedData => {
                     return VideoEmbed.findByIdAndRemove(embedVideo._id).exec()
                         .then(() => {
@@ -158,13 +150,34 @@ function getComments(postId, query, user) {
     return Post.findPostById(postId)
         .then((post) => {
             return Comment.getCommentsPromise(post.comments, query, user)
-                .then((feed) => {
-                    return User.getUserFeedPromise(feed.data.users)
+                .then((comments) => {
+                    query.postId = postId;
+                    let pagination = getPostCommentsPaging(query, comments.length);
+                    var userIds = []
+                    var userIdStrings = []
+                    let commentsFeed = comments.reduce(function (comments, comment) {
+                        let commentObj = comment.toJSON()
+                        commentObj.likes = getLikeData(comment.likes, user)
+                        let commentPage = API_BASE + 'comments/' + comment.id + '/comments'
+                        commentObj.replies = getCommentData(comment.comments, user, commentPage)
+                        delete commentObj.comments
+
+                        comments[comment._id] = commentObj
+                        if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
+                            userIdStrings.push(comment.userId.toString())
+                            userIds.push(comment.userId)
+                        }
+                        return comments;
+                    }, {});
+                    let feed = { data: { comments: commentsFeed } }
+                    if (Object.keys(pagination).length !== 0)
+                        feed.pagination = pagination;
+                    return User.getUserFeedPromise(userIds)
                         .then((userFeed) => {
                             feed.data.users = userFeed
                             return feed
                         })
-                })
+                });
         });
 }
 

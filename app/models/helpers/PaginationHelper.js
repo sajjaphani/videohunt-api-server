@@ -1,46 +1,80 @@
-const { QUERY_BY_DATE_RANGE, QUERY_BY_DATE_FORWARD, QUERY_BY_DATE_BACKWARD } = require('./constants')
+const { FEED_POSTS_LIMIT, TOPIC_POSTS_LIMIT, POST_COMMENTS_LIMIT, COMMENT_REPLIES_LIMIT } = require('./constants')
+const { API_BASE } = require('../../routes/constants');
 
-// Helper function to generate the pagination object
-// While getting pagination we are removing the last excess item, look for a good place to move
-function getFeedPagination(query, data, fieldName, pageBase) {
-    if(data.length == 0)
-        return {}
-    const PAGE_GET_BASE = pageBase + '/'
-    let pagination = {}
-    if (query.query == QUERY_BY_DATE_RANGE) {
-        // Range query, (E.g, give me feeds for range, from(since) -> to(until)
-        // No pagination, remove last we are always querying one extra item
-        if (data.length == query.limit + 1) {
-            data.pop()
-        }
-    } else if (query.query == QUERY_BY_DATE_BACKWARD) {
-        // Backward query, (E.g, give me 3 feeds, ends at until
-        // We may have next page here we have to use 'until' here   
-        pagination.previous = PAGE_GET_BASE + '?limit=' + query.limit + "&since=" + data[0][fieldName].getTime()
-        if (data.length == query.limit + 1) {
-            let lastFeed = data.pop()
-            pagination.next = PAGE_GET_BASE + '?limit=' + query.limit + "&until=" + lastFeed[fieldName].getTime()
-        }
-    } else if (query.query == QUERY_BY_DATE_FORWARD) {
-        // Forward query, (E.g, give me 3 feeds, starts at since
-        // We may have prev page here
-        pagination.next = PAGE_GET_BASE + '?limit=' + query.limit + "&until=" + data[0][fieldName].getTime()
-        if (data.length == query.limit + 1) {
-            let lastFeed = data.pop()
-            pagination.previous = PAGE_GET_BASE + '?limit=' + query.limit + "&since=" + lastFeed[fieldName].getTime()
-        }
-    } else {
-        // This is the 'default' query, (E.g, start at current date and get 3 feeds)
-        // We may have next page here
-        if (data.length == query.limit + 1) {
-            let lastFeed = data.pop()
-            pagination.next = PAGE_GET_BASE + '?limit=' + query.limit + "&until=" + lastFeed[fieldName].getTime()
-        }
+function getNextPage(query) {
+    console.log(query)
+    const page = query.page || 1;
+    if (page > 1) {
+        return +page + 1;
     }
 
-    return pagination
+    return 2;
+}
+
+function getFeedPostsNextPage(page, limit) {
+    const nextPageUrl = `${API_BASE}posts?page=${page}&limit=${limit}`
+    return nextPageUrl
+}
+
+function getFeedPostsPaging(query, count) {
+    const paging = {};
+    const limit = query.limit || FEED_POSTS_LIMIT;
+    if (limit === count) {
+        const page = getNextPage(query);
+        paging.next = getFeedPostsNextPage(page, limit);
+    }
+
+    return paging;
+}
+
+function getTopicPostsNextPage(category, page, limit) {
+    const nextPageUrl = `${API_BASE}category/${category}?page=${page}&limit=${limit}`
+    return nextPageUrl
+}
+
+function getTopicPostsPaging(query, count) {
+    const paging = {};
+    const limit = query.limit || TOPIC_POSTS_LIMIT;
+    if (limit === count) {
+        const page = getNextPage(query);
+        paging.next = getTopicPostsNextPage(query.category, page, limit);
+    }
+
+    return paging;
+}
+
+function getPostCommentsNextPage(postId, page, limit) {
+    const nextPageUrl = `${API_BASE}posts/${postId}/comments?page=${page}&limit=${limit}`
+    return nextPageUrl
+}
+
+function getPostCommentsPaging(query, count) {
+    const paging = {};
+    const limit = query.limit || POST_COMMENTS_LIMIT;
+    if (limit === count) {
+        const page = getNextPage(query);
+        paging.next = getPostCommentsNextPage(query.postId, page, limit);
+    }
+
+    return paging;
+}
+
+function getCommentRepliesNextPage(commentId, page, limit) {
+    const nextPageUrl = `${API_BASE}comments/${commentId}/comments?page=${page}&limit=${limit}`
+    return nextPageUrl
+}
+
+function getCommentRepliesPaging(query, count) {
+    const paging = {};
+    const limit = query.limit || COMMENT_REPLIES_LIMIT;
+    if (limit === count) {
+        const page = getNextPage(query);
+        paging.next = getCommentRepliesNextPage(query.commentId, page, limit);
+    }
+
+    return paging;
 }
 
 module.exports = {
-    getFeedPagination
+    getFeedPostsPaging, getTopicPostsPaging, getPostCommentsPaging, getCommentRepliesPaging
 }

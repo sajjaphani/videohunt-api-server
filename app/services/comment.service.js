@@ -4,6 +4,9 @@ var Comment = mongoose.model('Comment');
 var User = mongoose.model('User');
 
 const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper')
+const { getCommentRepliesPaging } = require('../models/helpers/PaginationHelper')
+
+const { API_BASE } = require('../routes/constants')
 
 function updateLike(commentId, userId, liked) {
     return Comment.updateLike(commentId, userId, liked)
@@ -13,13 +16,34 @@ function getReplies(commentId, query, user) {
     return Comment.findById(commentId).exec()
         .then((comment) => {
             return Comment.getCommentsPromise(comment.comments, query, user)
-                .then((feed) => {
-                    return User.getUserFeedPromise(feed.data.users)
+                .then((comments) => {
+                    query.commentId = commentId;
+                    let pagination = getCommentRepliesPaging(query, comments.length);
+                    var userIds = []
+                    var userIdStrings = []
+                    let commentsFeed = comments.reduce(function (comments, comment) {
+                        let commentObj = comment.toJSON()
+                        commentObj.likes = getLikeData(comment.likes, user)
+                        let commentPage = API_BASE + 'comments/' + comment.id + '/comments'
+                        commentObj.replies = getCommentData(comment.comments, user, commentPage)
+                        delete commentObj.comments
+
+                        comments[comment._id] = commentObj
+                        if (userIdStrings.indexOf(comment.userId.toString()) === -1) {
+                            userIdStrings.push(comment.userId.toString())
+                            userIds.push(comment.userId)
+                        }
+                        return comments;
+                    }, {});
+                    let feed = { data: { comments: commentsFeed } }
+                    if (Object.keys(pagination).length !== 0)
+                        feed.pagination = pagination;
+                    return User.getUserFeedPromise(userIds)
                         .then((userFeed) => {
                             feed.data.users = userFeed
                             return feed
                         })
-                })
+                }).catch(err => console.log(err));
         });
 }
 

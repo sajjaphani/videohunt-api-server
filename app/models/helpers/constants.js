@@ -1,12 +1,11 @@
-// These are the constants to be used for range based queries (for dates)
-const QUERY_BY_DATE_RANGE = 'range';
-const QUERY_BY_DATE_FORWARD = 'forward';
-const QUERY_BY_DATE_BACKWARD = 'backward';
-const QUERY_BY_DATE_DEFAULT = 'default';
+const FEED_POSTS_LIMIT = 10;
+const TOPIC_POSTS_LIMIT = 10;
+const POST_COMMENTS_LIMIT = 15;
+const COMMENT_REPLIES_LIMIT = 15;
 
 module.exports = {
-    QUERY_BY_DATE_RANGE,
-    QUERY_BY_DATE_FORWARD,
-    QUERY_BY_DATE_BACKWARD,
-    QUERY_BY_DATE_DEFAULT
+    FEED_POSTS_LIMIT,
+    TOPIC_POSTS_LIMIT,
+    POST_COMMENTS_LIMIT,
+    COMMENT_REPLIES_LIMIT
 };
