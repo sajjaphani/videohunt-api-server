@@ -2,7 +2,7 @@ const { getProvider, getSupportedProviders } = require('../oembed/oembed-provide
 const { parseUrl } = require('../util/url-parser');
 const { get } = require('../util/http-util')
 
-function getEmbedUrl(urlString) {
+function getEmbedProvider(urlString) {
     const promise = new Promise((resolve, reject) => {
         const _url = parseUrl(urlString);
         if (_url) {
@@ -18,7 +18,7 @@ function getEmbedUrl(urlString) {
                 };
                 return reject(validationError);
             } else {
-                return resolve(provider.getRequestUrl(urlString));
+                return resolve(provider);
             }
         } else {
             const validationError = {
@@ -37,9 +37,9 @@ function getEmbedUrl(urlString) {
 }
 
 function fetchOEmbed(url) {
-    return getEmbedUrl(url)
-        .then(getEmbedUrl => {
-            return get(getEmbedUrl);
+    return getEmbedProvider(url)
+        .then(provider => {
+            return provider.getOEmbed(url);
         });
 }
 
@@ -48,5 +48,5 @@ function getProviders() {
 }
 
 module.exports = {
-    getEmbedUrl, fetchOEmbed, getProviders
+    getEmbedProvider, fetchOEmbed, getProviders
 };

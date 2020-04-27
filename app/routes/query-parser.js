@@ -2,7 +2,6 @@ const { FEED_POSTS_LIMIT, TOPIC_POSTS_LIMIT,
     POST_COMMENTS_LIMIT, COMMENT_REPLIES_LIMIT } = require('../models/helpers/constants');
 
 function getQueryObject(page, limit) {
-    console.log(page, limit)
     const skip = (page - 1) * limit;
     const queryObject = { page: page, skip: skip, limit: limit };
     return queryObject;

@@ -2,7 +2,6 @@ const { FEED_POSTS_LIMIT, TOPIC_POSTS_LIMIT, POST_COMMENTS_LIMIT, COMMENT_REPLIE
 const { API_BASE } = require('../../routes/constants');
 
 function getNextPage(query) {
-    console.log(query)
     const page = query.page || 1;
     if (page > 1) {
         return +page + 1;

@@ -48,7 +48,6 @@ UserSchema.statics.getUserFeedPromise = function (userIds) {
 
 UserSchema.statics.createOrUpdate = function (query, update) {
     const options = { upsert: true, new: true };
-    // console.log(query, update, options);
     return this.findOneAndUpdate(query, update, options).exec();
 };
 

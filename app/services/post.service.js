@@ -9,7 +9,7 @@ const { getLikeData, getCommentData } = require('../models/helpers/ModelHelper')
 const { getPostCommentsPaging } = require('../models/helpers/PaginationHelper')
 
 const { API_BASE } = require('../routes/constants')
-const { getEmbedUrl, fetchOEmbed } = require('./embed.service');
+const { getEmbedProvider, fetchOEmbed } = require('./embed.service');
 
 function getPosts(postId, query, user) {
     return Post.getPosts(postId, query)
@@ -40,7 +40,7 @@ function getPosts(postId, query, user) {
 }
 
 function checkNewPost(url, user) {
-    return getEmbedUrl(url)
+    return getEmbedProvider(url)
         .then(() => {
             return Post.findPostByUrl(url)
         })
@@ -66,7 +66,9 @@ function checkNewPost(url, user) {
             } else {
                 return fetchOEmbed(url)
                     .then(embed => {
-                        embed.url = url;
+                        if (!embed.url) {
+                            embed.url = url;
+                        }
                         embed.embed = embed.html;
                         return embed;
                     }).then((data) => {
@@ -115,7 +117,7 @@ function saveNewPost(postData, user) {
                         }).catch(() => {
                             return embedData;
                         });
-                });
+                }).catch(err => console.log(err));
             }
         });
 }

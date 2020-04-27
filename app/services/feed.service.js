@@ -71,8 +71,6 @@ function getFeedQuery(query) {
 function getFeedForTopic(query, user) {
     return getFeedQuery(query).then(feedQueryObj => {
         query.filter = feedQueryObj;
-        console.log('query', query)
-        console.log(feedQueryObj);
         return Post.findPostsForTopic(query)
             .then((posts) => {
                 let postIds = []

@@ -31,7 +31,6 @@ PostSchema.index({ url: 'text', title: 'text' });
 
 // Find Feed Posts
 PostSchema.statics.findFeedPosts = function (query) {
-  console.log(query);
   const skip = query.skip || 0;
   const limit = query.limit || 1;
 
