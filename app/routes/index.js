@@ -17,7 +17,7 @@ const comments = require('./comments');
 router.use("/api/v1/comments", comments);
 
 const category = require('./category');
-router.use("/api/v1/category", category);
+router.use("/api/v1/topic", category);
 
 const topics = require('./topics');
 router.use("/api/v1/topics", topics);

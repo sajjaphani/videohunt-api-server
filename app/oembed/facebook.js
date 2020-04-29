@@ -17,17 +17,8 @@ Facebook.prototype.getRequestUrl = function (url) {
 Facebook.prototype.getOEmbed = function (url) {
     const requestUrl = this.getRequestUrl(url);
     return get(requestUrl).then((data) => {
-        const fbData = {
-            author_name: data.author_name, author_url: data.author_url, provider_url: data.provider_url,
-            provider_name: data.provider_name, height: data.height, html: data.html, type: data.type,
-            version: data.version, width: data.width
-        };
-        let url = getUrl(data.html);
-        if (!url) {
-            data.url = url;
-        }
         data.author = getAuthor(data.html);
-        data.url = getUrl(data.html);
+        data.url = getUrl(data.html, data.url);
         data.title = getTitle(data.html);
         data.description = getDescription(data.html);
         return data;
@@ -36,6 +27,7 @@ Facebook.prototype.getOEmbed = function (url) {
 
 module.exports = Facebook;
 
+// TODO we need to replace the regex
 function getTitle(embed) {
     const match = embed.match(/<a [^>]+>([^<]+)<\/a>/);
     if (match) {
@@ -51,17 +43,16 @@ function getDescription(embed) {
         return match[1];
     }
 
-    return ''
+    return '';
 }
 
-function getUrl(embed) {
+function getUrl(embed, url) {
     const match = embed.match(/<a href="(.*?)"/);
     if (match) {
-        console.log('match[1]', match[1])
         return match[1];
     }
 
-    return ''
+    return url;
 }
 
 function getAuthor(embed) {
